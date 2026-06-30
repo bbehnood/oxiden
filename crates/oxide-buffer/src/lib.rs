@@ -9,3 +9,4 @@ pub use error::{BufferError, Result};
 pub use position::Position;
 pub use range::Range;
 pub use storage::TextStorage;
+pub use storage::VecStorage;
