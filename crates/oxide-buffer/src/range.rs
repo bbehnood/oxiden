@@ -2,8 +2,8 @@ use crate::Position;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Range {
-    start: Position,
-    end: Position,
+    pub start: Position,
+    pub end: Position,
 }
 
 impl Range {
