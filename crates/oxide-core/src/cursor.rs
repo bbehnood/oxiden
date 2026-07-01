@@ -6,9 +6,7 @@ pub struct Cursor {
 
 impl Cursor {
     pub fn new() -> Self {
-        Self {
-            position: Position::new(0, 0),
-        }
+        Self { position: Position::new(0, 0) }
     }
 
     pub fn position(&self) -> Position {

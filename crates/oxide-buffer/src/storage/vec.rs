@@ -6,9 +6,7 @@ pub struct VecStorage {
 
 impl VecStorage {
     pub fn new() -> Self {
-        Self {
-            lines: vec![String::new()],
-        }
+        Self { lines: vec![String::new()] }
     }
 
     fn validate_position(&self, pos: Position) -> Result<()> {
@@ -131,9 +129,7 @@ mod tests {
     use super::*;
 
     fn storage(lines: &[&str]) -> VecStorage {
-        VecStorage {
-            lines: lines.iter().map(ToString::to_string).collect(),
-        }
+        VecStorage { lines: lines.iter().map(ToString::to_string).collect() }
     }
 
     // ===== Constructor =====
@@ -387,7 +383,8 @@ mod tests {
         let mut storage = storage(&["abc"]);
 
         assert!(matches!(
-            storage.delete(Range::new(Position::new(0, 0), Position::new(5, 0),)),
+            storage
+                .delete(Range::new(Position::new(0, 0), Position::new(5, 0),)),
             Err(BufferError::InvalidPosition)
         ));
     }
