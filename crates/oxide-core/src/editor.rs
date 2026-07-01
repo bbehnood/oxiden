@@ -90,7 +90,19 @@ impl<S: TextStorage> Editor<S> {
 
                 self.document.insert(pos, &text)?;
 
-                // TODO: Improve cursor movement
+                let parts: Vec<&str> = text.split('\n').collect();
+
+                if parts.len() == 1 {
+                    self.cursor.set(Position::new(
+                        pos.line,
+                        pos.column + parts[0].chars().count(),
+                    ));
+                } else {
+                    self.cursor.set(Position::new(
+                        pos.line + parts.len() - 1,
+                        parts.last().unwrap().chars().count(),
+                    ));
+                }
             }
 
             Command::Backspace => self.backspace()?,
