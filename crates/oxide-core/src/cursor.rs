@@ -32,3 +32,33 @@ impl Default for Cursor {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_starts_at_origin() {
+        let cursor = Cursor::new();
+
+        assert_eq!(cursor.position(), Position::new(0, 0));
+        assert_eq!(cursor.line(), 0);
+        assert_eq!(cursor.column(), 0);
+    }
+
+    #[test]
+    fn default_matches_new() {
+        assert_eq!(Cursor::default(), Cursor::new());
+    }
+
+    #[test]
+    fn set_updates_position_line_and_column() {
+        let mut cursor = Cursor::new();
+
+        cursor.set(Position::new(3, 7));
+
+        assert_eq!(cursor.position(), Position::new(3, 7));
+        assert_eq!(cursor.line(), 3);
+        assert_eq!(cursor.column(), 7);
+    }
+}

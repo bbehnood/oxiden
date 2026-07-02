@@ -112,7 +112,11 @@ impl<S: TextStorage> Editor<S> {
 
             Command::Delete => self.delete()?,
 
-            Command::DeleteRange(range) => {
+            Command::DeleteRange(mut range) => {
+                if range.start > range.end {
+                    std::mem::swap(&mut range.start, &mut range.end);
+                }
+
                 self.document.delete(range)?;
                 self.cursor.set(range.start);
             }
