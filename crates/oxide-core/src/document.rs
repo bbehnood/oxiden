@@ -108,6 +108,10 @@ impl<S: TextStorage + Default> Document<S> {
             trailing_newline,
         })
     }
+
+    pub fn new_at(path: impl Into<PathBuf>) -> Self {
+        Self { path: Some(path.into()), ..Self::new(Buffer::new(S::default())) }
+    }
 }
 
 impl<S: TextStorage> Document<S> {
@@ -238,6 +242,30 @@ mod tests {
         let result = Document::<VecStorage>::open(&path);
 
         assert!(matches!(result, Err(DocumentError::Io(_))));
+    }
+
+    #[test]
+    fn new_at_sets_path_without_touching_disk() {
+        let path = temp_path("new_at_sets_path_without_touching_disk");
+
+        let document = Document::<VecStorage>::new_at(&path);
+
+        assert_eq!(document.path(), Some(&path));
+        assert!(!document.is_dirty());
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn new_at_then_save_creates_the_file() {
+        let path = temp_path("new_at_then_save_creates_the_file");
+
+        let mut document = Document::<VecStorage>::new_at(&path);
+        document.insert(Position::new(0, 0), "hello").unwrap();
+        document.save().unwrap();
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), "hello\n");
+
+        let _ = fs::remove_file(&path);
     }
 
     #[test]

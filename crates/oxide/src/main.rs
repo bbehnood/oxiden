@@ -3,7 +3,7 @@ use std::io;
 use crossterm::event::{self, Event, KeyEventKind};
 
 use oxide_buffer::{Buffer, TextStorage, VecStorage};
-use oxide_core::{Command, Document, Editor};
+use oxide_core::{Command, Document, DocumentError, Editor};
 use oxide_terminal::input::{self, Action};
 use oxide_terminal::{Terminal, Viewport, render};
 
@@ -11,6 +11,12 @@ fn main() -> io::Result<()> {
     let document = match std::env::args().nth(1) {
         Some(path) => match Document::<VecStorage>::open(&path) {
             Ok(document) => document,
+
+            Err(DocumentError::Io(err))
+                if err.kind() == io::ErrorKind::NotFound =>
+            {
+                Document::new_at(path)
+            }
 
             Err(err) => {
                 eprintln!("oxide: couldn't open {path}: {err}");
