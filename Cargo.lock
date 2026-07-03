@@ -139,6 +139,12 @@ dependencies = [
 [[package]]
 name = "oxide"
 version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "oxide-buffer",
+ "oxide-core",
+ "oxide-terminal",
+]
 
 [[package]]
 name = "oxide-buffer"
