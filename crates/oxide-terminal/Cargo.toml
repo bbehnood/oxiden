@@ -2,8 +2,11 @@
 name = "oxide-terminal"
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Oxide terminal user interface"
 
 [dependencies]
+crossterm.workspace = true
+
 oxide-core = { path = "../oxide-core" }
 oxide-buffer = { path = "../oxide-buffer" }
-crossterm.workspace = true

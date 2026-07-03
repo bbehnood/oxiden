@@ -6,5 +6,6 @@ license = "MIT OR Apache-2.0"
 description = "Oxide core editor logic"
 
 [dependencies]
-oxide-buffer = { path = "../oxide-buffer" }
 thiserror.workspace = true
+
+oxide-buffer = { path = "../oxide-buffer" }
