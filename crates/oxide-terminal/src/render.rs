@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crossterm::cursor::MoveTo;
+use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::queue;
 use crossterm::style::Print;
 use crossterm::terminal::{Clear, ClearType};
@@ -17,7 +17,7 @@ pub fn draw<S: TextStorage>(
 ) -> io::Result<()> {
     let mut stdout = io::stdout();
 
-    queue!(stdout, Clear(ClearType::All))?;
+    queue!(stdout, Clear(ClearType::All), Hide)?;
 
     draw_buffer(&mut stdout, editor, viewport)?;
     draw_status_line(&mut stdout, editor, viewport, message)?;
@@ -94,5 +94,5 @@ fn position_cursor<S: TextStorage>(
     let row = (cursor.line - viewport.top) as u16;
     let col = (cursor.column - viewport.left) as u16;
 
-    queue!(stdout, MoveTo(col, row))
+    queue!(stdout, MoveTo(col, row), Show)
 }

@@ -1,6 +1,6 @@
 use std::io;
 
-use crossterm::cursor::{Hide, Show};
+use crossterm::cursor::Show;
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
@@ -13,7 +13,7 @@ impl Terminal {
     pub fn enter() -> io::Result<Self> {
         enable_raw_mode()?;
 
-        execute!(io::stdout(), EnterAlternateScreen, Hide)?;
+        execute!(io::stdout(), EnterAlternateScreen)?;
 
         Ok(Self)
     }
