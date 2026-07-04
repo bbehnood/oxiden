@@ -2,10 +2,10 @@
 resolver = "3"
 
 members = [
-	"crates/oxide",
-	"crates/oxide-core",
-	"crates/oxide-terminal",
-	"crates/oxide-buffer",
+	"crates/oxiden",
+	"crates/oxiden-core",
+	"crates/oxiden-tui",
+	"crates/oxiden-buffer",
 ]
 
 [workspace.dependencies]

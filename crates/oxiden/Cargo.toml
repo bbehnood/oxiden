@@ -1,0 +1,13 @@
+[package]
+name = "oxiden"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Oxiden binary crate"
+
+[dependencies]
+crossterm.workspace = true
+
+oxiden-buffer = { path = "../oxiden-buffer" }
+oxiden-core = { path = "../oxiden-core" }
+oxiden-tui = { path = "../oxiden-tui" }

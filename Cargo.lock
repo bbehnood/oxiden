@@ -137,37 +137,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxide"
+name = "oxiden"
 version = "0.1.0"
 dependencies = [
  "crossterm",
- "oxide-buffer",
- "oxide-core",
- "oxide-terminal",
+ "oxiden-buffer",
+ "oxiden-core",
+ "oxiden-tui",
 ]
 
 [[package]]
-name = "oxide-buffer"
+name = "oxiden-buffer"
 version = "0.1.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
-name = "oxide-core"
+name = "oxiden-core"
 version = "0.1.0"
 dependencies = [
- "oxide-buffer",
+ "oxiden-buffer",
  "thiserror",
 ]
 
 [[package]]
-name = "oxide-terminal"
+name = "oxiden-tui"
 version = "0.1.0"
 dependencies = [
  "crossterm",
- "oxide-buffer",
- "oxide-core",
+ "oxiden-buffer",
+ "oxiden-core",
 ]
 
 [[package]]

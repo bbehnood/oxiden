@@ -1,0 +1,11 @@
+[package]
+name = "oxiden-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Oxiden core editor logic"
+
+[dependencies]
+thiserror.workspace = true
+
+oxiden-buffer = { path = "../oxiden-buffer" }
