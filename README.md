@@ -50,6 +50,7 @@ oxiden
 | `←` `→` `↑` `↓`     | Move the cursor                                  |
 | `Home` / `End`      | Move to the start / end of the line              |
 | `Ctrl+S`            | Save                                             |
+| `Ctrl+Shift+S`      | Save as                                          |
 | `Ctrl+Q`            | Quit (press twice if there are unsaved changes)  |
 
 ## Architecture

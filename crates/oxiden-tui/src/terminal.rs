@@ -3,10 +3,14 @@
 use std::io;
 
 use crossterm::cursor::Show;
+use crossterm::event::{
+    KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+    PushKeyboardEnhancementFlags,
+};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
-    enable_raw_mode,
+    enable_raw_mode, supports_keyboard_enhancement,
 };
 
 /// Marker type representing "the terminal is currently in raw
@@ -19,10 +23,25 @@ impl Terminal {
     /// Enables raw mode and switches to the alternate screen buffer.
     /// Restoration happens automatically via `Drop` once the returned
     /// guard goes out of scope.
+    ///
+    /// Also opts into the keyboard enhancement protocol where the
+    /// terminal supports it, so modifier combinations like Ctrl+Shift+S
+    /// arrive as such instead of being indistinguishable from plain
+    /// Ctrl+S (the legacy terminal protocol most terminals speak by
+    /// default drops the Shift bit for Ctrl+<letter> combinations).
     pub fn enter() -> io::Result<Self> {
         enable_raw_mode()?;
 
         execute!(io::stdout(), EnterAlternateScreen)?;
+
+        if supports_keyboard_enhancement().unwrap_or(false) {
+            execute!(
+                io::stdout(),
+                PushKeyboardEnhancementFlags(
+                    KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+                )
+            )?;
+        }
 
         Ok(Self)
     }
@@ -32,12 +51,18 @@ impl Terminal {
         crossterm::terminal::size()
     }
 
-    /// Leaves the alternate screen, shows the cursor, and disables raw
-    /// mode. Safe to call even if entering failed partway, and safe to
-    /// call from a panic hook (errors are swallowed rather than
-    /// propagated, since there's nothing useful to do with them at that
-    /// point).
+    /// Leaves the alternate screen, shows the cursor, disables raw mode,
+    /// and pops the keyboard enhancement flags pushed by [`Self::enter`].
+    /// Safe to call even if entering failed partway, and safe to call
+    /// from a panic hook (errors are swallowed rather than propagated,
+    /// since there's nothing useful to do with them at that point).
+    ///
+    /// The enhancement-flags pop is unconditional (unlike the guarded
+    /// push in `enter`): on a terminal that never received the push,
+    /// popping is a no-op rather than an error, so there's no need to
+    /// track whether it was actually enabled.
     pub fn restore() {
+        let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags);
         let _ = execute!(io::stdout(), LeaveAlternateScreen, Show);
         let _ = disable_raw_mode();
     }

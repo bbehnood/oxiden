@@ -4,7 +4,7 @@
 
 use std::io;
 
-use crossterm::event::{self, Event, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
 use oxiden_buffer::{Buffer, TextStorage, VecStorage};
 use oxiden_core::{Command, Document, DocumentError, Editor};
@@ -56,6 +56,29 @@ fn main() -> io::Result<()> {
     result
 }
 
+/// Interactive single-line text input shown on the status line in place
+/// of the usual filename/position display, used to gather a path for
+/// [`Action::SaveAs`]. `None` means the editor is in its normal mode and
+/// keys should be interpreted through [`input::map_key`] as usual.
+struct Prompt {
+    /// Text shown before the user's typed input, e.g. `"Save as: "`.
+    label: &'static str,
+    /// What the user has typed so far.
+    input: String,
+}
+
+impl Prompt {
+    fn save_as() -> Self {
+        Self { label: "Save as: ", input: String::new() }
+    }
+
+    /// Renders this prompt as a status-line string, e.g. `"Save as:
+    /// notes.txt"`.
+    fn render(&self) -> String {
+        format!("{}{}", self.label, self.input)
+    }
+}
+
 /// The main input/render loop: draw the current state, wait for the next
 /// terminal event, apply it, repeat until the user quits.
 fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
@@ -67,16 +90,64 @@ fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
 
     let mut status: Option<String> = None;
     let mut quit_pending = false;
+    let mut prompt: Option<Prompt> = None;
 
     loop {
         viewport.scroll_to(editor.cursor().position());
-        render::draw(editor, &viewport, status.as_deref())?;
+
+        // A prompt in progress takes over the status line so the user
+        // can see what they're typing.
+        let status_line =
+            prompt.as_ref().map(Prompt::render).or_else(|| status.clone());
+        render::draw(editor, &viewport, status_line.as_deref())?;
 
         match event::read()? {
             // `KeyEventKind::Press` filters out the release/repeat events
             // some terminals report, so each physical key press is only
             // handled once.
             Event::Key(key) if key.kind == KeyEventKind::Press => {
+                // While a prompt is active, every key edits its text
+                // buffer instead of being interpreted as an editor
+                // command — otherwise typing a filename would also move
+                // the cursor, trigger shortcuts, etc.
+                if let Some(active) = prompt.as_mut() {
+                    match key.code {
+                        KeyCode::Enter => {
+                            let path = active.input.clone();
+                            prompt = None;
+
+                            status = Some(if path.is_empty() {
+                                "Save as cancelled: no filename given"
+                                    .to_string()
+                            } else {
+                                match editor.document_mut().save_as(path) {
+                                    Ok(()) => "Saved".to_string(),
+                                    Err(err) => err.to_string(),
+                                }
+                            });
+                        }
+
+                        KeyCode::Esc => {
+                            prompt = None;
+                            status = Some("Save as cancelled".to_string());
+                        }
+
+                        KeyCode::Backspace => {
+                            active.input.pop();
+                        }
+
+                        KeyCode::Char(c) => active.input.push(c),
+
+                        // Anything else (arrows, function keys, etc.)
+                        // isn't meaningful input for a bare filename
+                        // prompt, so it's ignored rather than falling
+                        // through to editor commands.
+                        _ => {}
+                    }
+
+                    continue;
+                }
+
                 let action = input::map_key(key);
 
                 if matches!(action, Action::Quit) {
@@ -123,6 +194,10 @@ fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
                             Ok(()) => "Saved".to_string(),
                             Err(err) => err.to_string(),
                         });
+                    }
+
+                    Action::SaveAs => {
+                        prompt = Some(Prompt::save_as());
                     }
 
                     // `Quit` is fully handled above; `Noop` intentionally

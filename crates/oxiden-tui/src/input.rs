@@ -17,6 +17,8 @@ pub enum Action {
     Move(Move),
     /// Save the current document.
     Save,
+    /// Save the current document to a new, user-chosen path
+    SaveAs,
     /// Quit the application.
     Quit,
     /// The key press doesn't map to anything (e.g. an unhandled
@@ -42,13 +44,25 @@ pub enum Move {
 ///
 /// Plain characters (no modifiers, or Shift only — needed for uppercase
 /// letters and shifted symbols) become [`Command::Insert`]; everything
-/// else is either a fixed editing command, a cursor motion, or one of the
-/// two application-level shortcuts (Ctrl+Q to quit, Ctrl+S to save).
-/// Any combination not covered here maps to [`Action::Noop`].
+/// else is either a fixed editing command, a cursor motion, or one of
+/// the application-level shortcuts (Ctrl+Q to quit, Ctrl+S to save,
+/// Ctrl+Shift+S to save as). Any combination not covered here maps to
+/// [`Action::Noop`].
+///
+/// Note: Ctrl+Shift+S is only distinguishable from plain Ctrl+S on
+/// terminals that report the Shift modifier alongside Ctrl for letter
+/// keys (see [`crate::Terminal`], which opts into this where
+/// supported). On terminals that don't, this arm never matches and
+/// Ctrl+Shift+S falls through to plain `Save` instead.
 pub fn map_key(key: KeyEvent) -> Action {
     match (key.code, key.modifiers) {
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => Action::Quit,
-        (KeyCode::Char('s'), KeyModifiers::CONTROL) => Action::Save,
+        (KeyCode::Char('s'), m) if m == KeyModifiers::CONTROL => Action::Save,
+        (KeyCode::Char('s'), m)
+            if m == KeyModifiers::CONTROL | KeyModifiers::SHIFT =>
+        {
+            Action::SaveAs
+        }
 
         (KeyCode::Char(c), m) if m.is_empty() || m == KeyModifiers::SHIFT => {
             Action::Edit(Command::Insert(c))
@@ -200,5 +214,33 @@ mod tests {
         let target = motion_target(&buffer, Position::new(0, 1), Move::Up);
 
         assert_eq!(target, Position::new(0, 1));
+    }
+
+    fn key(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
+        KeyEvent::new(code, modifiers)
+    }
+
+    #[test]
+    fn ctrl_s_saves() {
+        let action = map_key(key(KeyCode::Char('s'), KeyModifiers::CONTROL));
+
+        assert_eq!(action, Action::Save);
+    }
+
+    #[test]
+    fn ctrl_shift_s_saves_as() {
+        let action = map_key(key(
+            KeyCode::Char('s'),
+            KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+        ));
+
+        assert_eq!(action, Action::SaveAs);
+    }
+
+    #[test]
+    fn plain_s_inserts_character() {
+        let action = map_key(key(KeyCode::Char('s'), KeyModifiers::NONE));
+
+        assert_eq!(action, Action::Edit(Command::Insert('s')));
     }
 }
