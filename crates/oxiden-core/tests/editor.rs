@@ -24,6 +24,24 @@ fn move_to_sets_cursor_position() {
     assert_eq!(editor.cursor().position(), Position::new(1, 3));
 }
 
+#[test]
+fn move_to_clamps_out_of_range_line() {
+    let mut editor = editor_with("Hello\nWorld");
+
+    editor.execute(Command::MoveTo(Position::new(99, 0))).unwrap();
+
+    assert_eq!(editor.cursor().position(), Position::new(1, 0));
+}
+
+#[test]
+fn move_to_clamps_out_of_range_column() {
+    let mut editor = editor_with("Hello\nWorld");
+
+    editor.execute(Command::MoveTo(Position::new(0, 99))).unwrap();
+
+    assert_eq!(editor.cursor().position(), Position::new(0, 5));
+}
+
 // ===== Insert =====
 
 #[test]

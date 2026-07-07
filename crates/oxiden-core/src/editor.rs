@@ -47,8 +47,14 @@ impl<S: TextStorage> Editor<S> {
     /// moved.
     pub fn execute(&mut self, command: Command) -> Result<()> {
         match command {
-            Command::MoveTo(pos) => self.cursor.set(pos),
+            Command::MoveTo(pos) => {
+                let buffer = self.document.buffer();
 
+                let line = pos.line.min(buffer.line_count() - 1);
+                let column = pos.column.min(buffer.line_len(line).unwrap_or(0));
+
+                self.cursor.set(Position::new(line, column));
+            }
             Command::Insert(ch) => {
                 let pos = self.cursor.position();
 
