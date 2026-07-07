@@ -95,7 +95,7 @@ fn expand_tabs(line: &str, tab_width: usize) -> String {
     for ch in line.chars() {
         if ch == '\t' {
             let width = tab_width - (col % tab_width);
-            expanded.extend(std::iter::repeat(' ').take(width));
+            expanded.extend(std::iter::repeat_n(' ', width));
             col += width;
         } else {
             expanded.push(ch);
