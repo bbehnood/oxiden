@@ -12,6 +12,10 @@ members = [
 thiserror = "2"
 crossterm = "0.29"
 
+oxiden-buffer = { version = "0.1.0", path = "crates/oxiden-buffer" }
+oxiden-core = { version = "0.1.0", path = "crates/oxiden-core" }
+oxiden-tui = { version = "0.1.0", path = "crates/oxiden-tui" }
+
 [profile.release]
 opt-level = 3
 lto = true

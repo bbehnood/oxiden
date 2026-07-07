@@ -8,4 +8,4 @@ description = "Oxiden core editor logic"
 [dependencies]
 thiserror.workspace = true
 
-oxiden-buffer = { path = "../oxiden-buffer" }
+oxiden-buffer.workspace = true

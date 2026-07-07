@@ -8,5 +8,5 @@ description = "Oxiden terminal user interface"
 [dependencies]
 crossterm.workspace = true
 
-oxiden-core = { path = "../oxiden-core" }
-oxiden-buffer = { path = "../oxiden-buffer" }
+oxiden-core.workspace = true
+oxiden-buffer.workspace = true

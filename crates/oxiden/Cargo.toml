@@ -8,6 +8,6 @@ description = "Oxiden binary crate"
 [dependencies]
 crossterm.workspace = true
 
-oxiden-buffer = { path = "../oxiden-buffer" }
-oxiden-core = { path = "../oxiden-core" }
-oxiden-tui = { path = "../oxiden-tui" }
+oxiden-buffer.workspace = true
+oxiden-core.workspace = true
+oxiden-tui.workspace = true
