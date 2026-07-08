@@ -57,12 +57,8 @@ pub enum Move {
 pub fn map_key(key: KeyEvent) -> Action {
     match (key.code, key.modifiers) {
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => Action::Quit,
-        (KeyCode::Char('s'), m) if m == KeyModifiers::CONTROL => Action::Save,
-        (KeyCode::Char('s'), m)
-            if m == KeyModifiers::CONTROL | KeyModifiers::SHIFT =>
-        {
-            Action::SaveAs
-        }
+        (KeyCode::Char('s'), KeyModifiers::CONTROL) => Action::Save,
+        (KeyCode::F(2), _) => Action::SaveAs,
 
         (KeyCode::Char(c), m) if m.is_empty() || m == KeyModifiers::SHIFT => {
             Action::Edit(Command::Insert(c))
@@ -228,9 +224,9 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_shift_s_saves_as() {
+    fn f2_saves_as() {
         let action = map_key(key(
-            KeyCode::Char('s'),
+            KeyCode::F(2),
             KeyModifiers::CONTROL | KeyModifiers::SHIFT,
         ));
 
