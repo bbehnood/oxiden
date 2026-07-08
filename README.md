@@ -80,8 +80,10 @@ The lowest-level crate. Defines:
   **character** offsets so it's Unicode-safe.
 - `Range` — a span between two `Position`s.
 - `TextStorage` — a trait for pluggable text storage backends.
-- `VecStorage` — the only implementation today: one `String` per line in a
-  `Vec`.
+- `VecStorage` — one `String` per line in a `Vec`. Simple, and fast enough
+  for everyday editing.
+- `RopeStorage` — a rope (a tree of text chunks) that scales better for
+  large documents and edits away from the end of a line.
 - `Buffer<S>` — wraps a `TextStorage` with convenience queries (line
   length, "is this the last line", position validity).
 
