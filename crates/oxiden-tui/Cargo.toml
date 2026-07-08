@@ -1,9 +1,11 @@
 [package]
 name = "oxiden-tui"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Oxiden terminal user interface"
+repository = "https://github.com/bbehnood/oxiden"
+readme = "../../README.md"
 
 [dependencies]
 crossterm.workspace = true
