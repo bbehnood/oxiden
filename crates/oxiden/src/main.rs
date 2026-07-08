@@ -6,7 +6,7 @@ use std::io;
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
-use oxiden_buffer::{Buffer, TextStorage, VecStorage};
+use oxiden_buffer::{Buffer, RopeStorage, TextStorage};
 use oxiden_core::{Command, Document, DocumentError, Editor};
 use oxiden_tui::input::{self, Action};
 use oxiden_tui::{Terminal, Viewport, render};
@@ -17,7 +17,7 @@ fn main() -> io::Result<()> {
     // (e.g. permissions) is fatal. With no argument: start a scratch
     // buffer with no associated path.
     let document = match std::env::args().nth(1) {
-        Some(path) => match Document::<VecStorage>::open(&path) {
+        Some(path) => match Document::<RopeStorage>::open(&path) {
             Ok(document) => document,
 
             Err(DocumentError::Io(err))
@@ -32,7 +32,7 @@ fn main() -> io::Result<()> {
             }
         },
 
-        None => Document::new(Buffer::new(VecStorage::new())),
+        None => Document::new(Buffer::new(RopeStorage::new())),
     };
 
     let mut editor = Editor::new(document);
