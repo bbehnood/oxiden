@@ -1,5 +1,7 @@
+mod rope;
 mod vec;
 
+pub use rope::RopeStorage;
 pub use vec::VecStorage;
 
 use crate::{Position, Range, Result};
