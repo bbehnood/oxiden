@@ -46,14 +46,8 @@ pub enum Move {
 /// letters and shifted symbols) become [`Command::Insert`]; everything
 /// else is either a fixed editing command, a cursor motion, or one of
 /// the application-level shortcuts (Ctrl+Q to quit, Ctrl+S to save,
-/// Ctrl+Shift+S to save as). Any combination not covered here maps to
+/// F2 to save as). Any combination not covered here maps to
 /// [`Action::Noop`].
-///
-/// Note: Ctrl+Shift+S is only distinguishable from plain Ctrl+S on
-/// terminals that report the Shift modifier alongside Ctrl for letter
-/// keys (see [`crate::Terminal`], which opts into this where
-/// supported). On terminals that don't, this arm never matches and
-/// Ctrl+Shift+S falls through to plain `Save` instead.
 pub fn map_key(key: KeyEvent) -> Action {
     match (key.code, key.modifiers) {
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => Action::Quit,
