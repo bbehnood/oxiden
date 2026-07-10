@@ -38,6 +38,8 @@ pub enum Move {
     Right,
     LineStart,
     LineEnd,
+    FileStart,
+    FileEnd,
 }
 
 /// Maps a raw key event to an [`Action`].
@@ -69,6 +71,8 @@ pub fn map_key(key: KeyEvent) -> Action {
         (KeyCode::Down, _) => Action::Move(Move::Down),
         (KeyCode::Home, _) => Action::Move(Move::LineStart),
         (KeyCode::End, _) => Action::Move(Move::LineEnd),
+        (KeyCode::PageUp, _) => Action::Move(Move::FileStart),
+        (KeyCode::PageDown, _) => Action::Move(Move::FileEnd),
 
         _ => Action::Noop,
     }
@@ -143,6 +147,15 @@ pub fn motion_target<S: TextStorage>(
             let len = buffer.line_len(cursor.line).unwrap_or(0);
 
             Position::new(cursor.line, len)
+        }
+
+        Move::FileStart => Position::new(0, 0),
+
+        Move::FileEnd => {
+            let line = buffer.line_count() - 1;
+            let len = buffer.line_len(line).unwrap_or(0);
+
+            Position::new(line, len)
         }
     }
 }
