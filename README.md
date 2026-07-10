@@ -52,6 +52,7 @@ oxiden --backend vec path/to/file.txt
 | `Delete`            | Delete the character at the cursor               |
 | `←` `→` `↑` `↓`     | Move the cursor                                  |
 | `Home` / `End`      | Move to the start / end of the line              |
+| `PgUp` / `PgDn`     | Move to the start / end of the line              |
 | `Ctrl+S`            | Save                                             |
 | `F2`                | Save as                                          |
 | `Ctrl+Q`            | Quit (press twice if there are unsaved changes)  |
