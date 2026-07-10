@@ -82,8 +82,10 @@ The lowest-level crate. Defines:
 - `TextStorage` — a trait for pluggable text storage backends.
 - `VecStorage` — one `String` per line in a `Vec`. Simple, and fast enough
   for everyday editing.
-- `RopeStorage` — a rope (a tree of text chunks) that scales better for
-  large documents and edits away from the end of a line.
+- `RopeStorage` — a hand-rolled rope (a tree of text chunks) that scales
+  better for large documents and edits away from the end of a line.
+- `RopeyStorage` — the same idea as `RopeStorage`, but backed by the
+  battle-tested `ropey` crate instead of a from-scratch implementation.
 - `Buffer<S>` — wraps a `TextStorage` with convenience queries (line
   length, "is this the last line", position validity).
 
