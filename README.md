@@ -36,6 +36,9 @@ oxiden path/to/file.txt
 
 # Start with an empty, unnamed buffer
 oxiden
+
+# Choose a storage backend (defaults to ropey): vec, rope, or ropey
+oxiden --backend vec path/to/file.txt
 ```
 
 ### Key bindings
