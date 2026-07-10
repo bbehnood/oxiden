@@ -7,9 +7,12 @@
 //! the [`Buffer`] type here.
 //!
 //! The storage backend is pluggable via the [`TextStorage`] trait, so
-//! alternative representations (e.g. a rope) could be swapped in without
-//! changing `Buffer`'s API. [`VecStorage`] is the only implementation today:
-//! a plain `Vec<String>`, one entry per line.
+//! alternative representations can be swapped in without changing
+//! `Buffer`'s API. Three implementations exist today: [`VecStorage`], a
+//! plain `Vec<String>` with one entry per line; [`RopeStorage`], a
+//! hand-rolled rope that scales better for large documents; and
+//! [`RopeyStorage`], which wraps the `ropey` crate's production rope
+//! implementation.
 
 pub mod buffer;
 pub mod error;
@@ -21,5 +24,7 @@ pub use buffer::Buffer;
 pub use error::{BufferError, Result};
 pub use position::Position;
 pub use range::Range;
+pub use storage::RopeStorage;
+pub use storage::RopeyStorage;
 pub use storage::TextStorage;
 pub use storage::VecStorage;

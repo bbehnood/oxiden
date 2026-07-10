@@ -36,6 +36,9 @@ oxiden path/to/file.txt
 
 # Start with an empty, unnamed buffer
 oxiden
+
+# Choose a storage backend (defaults to ropey): vec, rope, or ropey
+oxiden --backend vec path/to/file.txt
 ```
 
 ### Key bindings
@@ -80,8 +83,12 @@ The lowest-level crate. Defines:
   **character** offsets so it's Unicode-safe.
 - `Range` — a span between two `Position`s.
 - `TextStorage` — a trait for pluggable text storage backends.
-- `VecStorage` — the only implementation today: one `String` per line in a
-  `Vec`.
+- `VecStorage` — one `String` per line in a `Vec`. Simple, and fast enough
+  for everyday editing.
+- `RopeStorage` — a hand-rolled rope (a tree of text chunks) that scales
+  better for large documents and edits away from the end of a line.
+- `RopeyStorage` — the same idea as `RopeStorage`, but backed by the
+  battle-tested `ropey` crate instead of a from-scratch implementation.
 - `Buffer<S>` — wraps a `TextStorage` with convenience queries (line
   length, "is this the last line", position validity).
 

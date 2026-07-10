@@ -25,10 +25,8 @@ impl Terminal {
     /// guard goes out of scope.
     ///
     /// Also opts into the keyboard enhancement protocol where the
-    /// terminal supports it, so modifier combinations like Ctrl+Shift+S
-    /// arrive as such instead of being indistinguishable from plain
-    /// Ctrl+S (the legacy terminal protocol most terminals speak by
-    /// default drops the Shift bit for Ctrl+<letter> combinations).
+    /// terminal supports it, allowing more complete keyboard event
+    /// reporting on compatible terminals.
     pub fn enter() -> io::Result<Self> {
         enable_raw_mode()?;
 

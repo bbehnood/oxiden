@@ -1,5 +1,9 @@
+mod rope;
+mod ropey;
 mod vec;
 
+pub use rope::RopeStorage;
+pub use ropey::RopeyStorage;
 pub use vec::VecStorage;
 
 use crate::{Position, Range, Result};

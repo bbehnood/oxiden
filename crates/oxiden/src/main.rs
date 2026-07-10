@@ -6,18 +6,88 @@ use std::io;
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
-use oxiden_buffer::{Buffer, TextStorage, VecStorage};
+use oxiden_buffer::{
+    Buffer, RopeStorage, RopeyStorage, TextStorage, VecStorage,
+};
 use oxiden_core::{Command, Document, DocumentError, Editor};
 use oxiden_tui::input::{self, Action};
 use oxiden_tui::{Terminal, Viewport, render};
 
+/// Which [`TextStorage`] implementation to run the editor with, selected
+/// via `--backend`. Defaults to [`Backend::Vec`], the simplest and best
+/// tested of the three.
+#[derive(Debug, Clone, Copy)]
+enum Backend {
+    /// [`VecStorage`]: one `String` per line.
+    Vec,
+    /// [`RopeStorage`]: a hand-rolled rope.
+    Rope,
+    /// [`RopeyStorage`]: a rope backed by the `ropey` crate.
+    Ropey,
+}
+
+impl Backend {
+    fn parse(name: &str) -> Option<Self> {
+        match name {
+            "vec" => Some(Backend::Vec),
+            "rope" => Some(Backend::Rope),
+            "ropey" => Some(Backend::Ropey),
+            _ => None,
+        }
+    }
+}
+
 fn main() -> io::Result<()> {
+    // A tiny hand-rolled parser rather than pulling in an args crate for
+    // two flags: `--backend <vec|rope|ropey>` (or `--backend=<value>`),
+    // and a single positional file path.
+    let mut backend = Backend::Ropey;
+    let mut path: Option<String> = None;
+    let mut args = std::env::args().skip(1);
+
+    while let Some(arg) = args.next() {
+        let requested = if arg == "--backend" {
+            let Some(value) = args.next() else {
+                eprintln!("oxiden: --backend requires a value");
+                std::process::exit(1);
+            };
+            Some(value)
+        } else {
+            arg.strip_prefix("--backend=").map(str::to_string)
+        };
+
+        if let Some(value) = requested {
+            match Backend::parse(&value) {
+                Some(parsed) => backend = parsed,
+                None => {
+                    eprintln!(
+                        "oxiden: unknown backend {value:?} \
+                         (expected vec, rope, or ropey)"
+                    );
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            path = Some(arg);
+        }
+    }
+
+    match backend {
+        Backend::Vec => run_with::<VecStorage>(path),
+        Backend::Rope => run_with::<RopeStorage>(path),
+        Backend::Ropey => run_with::<RopeyStorage>(path),
+    }
+}
+
+/// Opens `path` (or starts a scratch buffer if `path` is `None`) with
+/// storage backend `S`, then drives the editor until it quits.
+fn run_with<S: TextStorage + Default>(path: Option<String>) -> io::Result<()> {
     // With a file argument: open it, or start a new (unsaved-to-disk)
     // document at that path if it doesn't exist yet. Any other I/O error
     // (e.g. permissions) is fatal. With no argument: start a scratch
     // buffer with no associated path.
-    let document = match std::env::args().nth(1) {
-        Some(path) => match Document::<VecStorage>::open(&path) {
+    let document = match path {
+        Some(path) => match Document::<S>::open(&path) {
             Ok(document) => document,
 
             Err(DocumentError::Io(err))
@@ -32,7 +102,7 @@ fn main() -> io::Result<()> {
             }
         },
 
-        None => Document::new(Buffer::new(VecStorage::new())),
+        None => Document::new(Buffer::new(S::default())),
     };
 
     let mut editor = Editor::new(document);
