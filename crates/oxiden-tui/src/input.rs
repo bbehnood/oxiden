@@ -15,6 +15,11 @@ pub enum Action {
     /// [`motion_target`] since the target position depends on line
     /// lengths, not just the key pressed.
     Move(Move),
+    /// Delete from the cursor to wherever this [`Move`] resolves to,
+    /// via [`motion_target`] — e.g. `Move::WordLeft` for Ctrl+Backspace.
+    /// Resolved at the same call site as [`Self::Move`], but wrapped in
+    /// a [`Command::DeleteRange`] instead of a `Command::MoveTo`.
+    DeleteTo(Move),
     /// Save the current document.
     Save,
     /// Save the current document to a new, user-chosen path
@@ -60,6 +65,10 @@ pub fn map_key(key: KeyEvent) -> Action {
 
         (KeyCode::Char(c), m) if m.is_empty() || m == KeyModifiers::SHIFT => {
             Action::Edit(Command::Insert(c))
+        }
+
+        (KeyCode::Delete, KeyModifiers::CONTROL) => {
+            Action::DeleteTo(Move::WordRight)
         }
 
         (KeyCode::Tab, _) => Action::Edit(Command::Insert('\t')),
