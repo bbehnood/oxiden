@@ -7,7 +7,7 @@ use std::io;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
 use oxiden_buffer::{
-    Buffer, RopeStorage, RopeyStorage, TextStorage, VecStorage,
+    Buffer, Range, RopeStorage, RopeyStorage, TextStorage, VecStorage,
 };
 use oxiden_core::{Command, Document, DocumentError, Editor};
 use oxiden_tui::input::{self, Action};
@@ -257,6 +257,26 @@ fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
                         // MoveTo never fails, so the result can be
                         // discarded.
                         let _ = editor.execute(Command::MoveTo(target));
+                    }
+
+                    Action::DeleteTo(movement) => {
+                        let cursor = editor.cursor().position();
+                        let target = input::motion_target(
+                            editor.document().buffer(),
+                            cursor,
+                            movement,
+                        );
+
+                        // Normalize the input since any motion is being accepted
+                        let (start, end) = if target < cursor {
+                            (target, cursor)
+                        } else {
+                            (cursor, target)
+                        };
+
+                        let _ = editor.execute(Command::DeleteRange(
+                            Range::new(start, end),
+                        ));
                     }
 
                     Action::Save => {

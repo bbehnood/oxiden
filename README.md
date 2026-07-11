@@ -50,8 +50,11 @@ oxiden --backend vec path/to/file.txt
 | `Enter`             | Insert a newline                                 |
 | `Backspace`         | Delete the character before the cursor           |
 | `Delete`            | Delete the character at the cursor               |
+| `Ctrl+delete`       | Delete the next word                             |
 | `←` `→` `↑` `↓`     | Move the cursor                                  |
+| `Ctrl+←` / `Ctrl+→` | Move to the next / previous word                 |
 | `Home` / `End`      | Move to the start / end of the line              |
+| `PgUp` / `PgDn`     | Move to the start / end of the file              |
 | `Ctrl+S`            | Save                                             |
 | `F2`                | Save as                                          |
 | `Ctrl+Q`            | Quit (press twice if there are unsaved changes)  |
