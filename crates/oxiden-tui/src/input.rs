@@ -40,6 +40,8 @@ pub enum Move {
     LineEnd,
     FileStart,
     FileEnd,
+    WordLeft,
+    WordRight,
 }
 
 /// Maps a raw key event to an [`Action`].
@@ -64,6 +66,11 @@ pub fn map_key(key: KeyEvent) -> Action {
         (KeyCode::Enter, _) => Action::Edit(Command::NewLine),
         (KeyCode::Backspace, _) => Action::Edit(Command::Backspace),
         (KeyCode::Delete, _) => Action::Edit(Command::Delete),
+
+        (KeyCode::Left, KeyModifiers::CONTROL) => Action::Move(Move::WordLeft),
+        (KeyCode::Right, KeyModifiers::CONTROL) => {
+            Action::Move(Move::WordRight)
+        }
 
         (KeyCode::Left, _) => Action::Move(Move::Left),
         (KeyCode::Right, _) => Action::Move(Move::Right),
@@ -140,6 +147,10 @@ pub fn motion_target<S: TextStorage>(
                 Position::new(line, cursor.column.min(len))
             }
         }
+
+        Move::WordLeft => word_boundary(buffer, cursor, Direction::Left),
+
+        Move::WordRight => word_boundary(buffer, cursor, Direction::Right),
 
         Move::LineStart => Position::new(cursor.line, 0),
 
@@ -307,9 +318,8 @@ pub fn word_boundary<S: TextStorage>(
 
             if let Some(class) = class_at(buffer, pos) {
                 if class != CharClass::Whitespace {
-                    pos = advance_while(buffer, pos, |c| {
-                        char_class(c) == class
-                    });
+                    pos =
+                        advance_while(buffer, pos, |c| char_class(c) == class);
                 }
             }
 
@@ -397,11 +407,8 @@ mod tests {
     fn word_right_from_start_of_word_skips_to_next_word() {
         let buffer = buffer(&["hello world"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 0),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 0), Direction::Right);
 
         assert_eq!(target, Position::new(0, 6));
     }
@@ -410,11 +417,8 @@ mod tests {
     fn word_right_from_middle_of_word_skips_to_next_word() {
         let buffer = buffer(&["hello world"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 2),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 2), Direction::Right);
 
         assert_eq!(target, Position::new(0, 6));
     }
@@ -424,11 +428,8 @@ mod tests {
         let buffer = buffer(&["foo, bar"]);
 
         // "foo, bar": f-o-o-,-space-b-a-r, so "," starts at column 3.
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 0),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 0), Direction::Right);
 
         assert_eq!(target, Position::new(0, 3));
     }
@@ -437,11 +438,8 @@ mod tests {
     fn word_right_from_punctuation_skips_to_next_word() {
         let buffer = buffer(&["foo, bar"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 3),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 3), Direction::Right);
 
         assert_eq!(target, Position::new(0, 5));
     }
@@ -452,11 +450,8 @@ mod tests {
 
         // End of "abc"; should land past the leading whitespace of the
         // next line, at the start of "def".
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 3),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 3), Direction::Right);
 
         assert_eq!(target, Position::new(1, 3));
     }
@@ -465,11 +460,8 @@ mod tests {
     fn word_right_skips_blank_lines() {
         let buffer = buffer(&["abc", "", "def"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 3),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 3), Direction::Right);
 
         assert_eq!(target, Position::new(2, 0));
     }
@@ -478,11 +470,8 @@ mod tests {
     fn word_right_at_end_of_buffer_stays_put() {
         let buffer = buffer(&["abc"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 3),
-            Direction::Right,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 3), Direction::Right);
 
         assert_eq!(target, Position::new(0, 3));
     }
@@ -491,11 +480,8 @@ mod tests {
     fn word_left_from_end_of_word_skips_to_its_start() {
         let buffer = buffer(&["hello world"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 11),
-            Direction::Left,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 11), Direction::Left);
 
         assert_eq!(target, Position::new(0, 6));
     }
@@ -506,11 +492,8 @@ mod tests {
 
         // Column 6 is already the start of "world"; Left should jump back
         // to the start of "hello", not stay put.
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 6),
-            Direction::Left,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 6), Direction::Left);
 
         assert_eq!(target, Position::new(0, 0));
     }
@@ -519,11 +502,8 @@ mod tests {
     fn word_left_crosses_line_boundary() {
         let buffer = buffer(&["abc", "def"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(1, 0),
-            Direction::Left,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(1, 0), Direction::Left);
 
         assert_eq!(target, Position::new(0, 0));
     }
@@ -532,11 +512,8 @@ mod tests {
     fn word_left_skips_blank_lines() {
         let buffer = buffer(&["abc", "", "def"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(2, 0),
-            Direction::Left,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(2, 0), Direction::Left);
 
         assert_eq!(target, Position::new(0, 0));
     }
@@ -545,11 +522,8 @@ mod tests {
     fn word_left_at_start_of_buffer_stays_put() {
         let buffer = buffer(&["abc"]);
 
-        let target = word_boundary(
-            &buffer,
-            Position::new(0, 0),
-            Direction::Left,
-        );
+        let target =
+            word_boundary(&buffer, Position::new(0, 0), Direction::Left);
 
         assert_eq!(target, Position::new(0, 0));
     }
