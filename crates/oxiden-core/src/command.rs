@@ -31,4 +31,12 @@ pub enum Command {
 
     /// Insert a newline at the cursor, splitting the current line.
     NewLine,
+
+    /// Reverts the most recent group of edits (e.g. a whole run of typed
+    /// characters undone in one step) and moves the cursor to where that
+    /// left things. A no-op if there's nothing to undo.
+    Undo,
+    /// Re-applies the most recently undone group of edits. A no-op if
+    /// there's nothing to redo.
+    Redo,
 }

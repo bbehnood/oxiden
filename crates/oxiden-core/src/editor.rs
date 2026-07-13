@@ -48,6 +48,12 @@ impl<S: TextStorage> Editor<S> {
     pub fn execute(&mut self, command: Command) -> Result<()> {
         match command {
             Command::MoveTo(pos) => {
+                // A cursor move with no edit means whatever comes next
+                // shouldn't merge into the previous undo group (e.g.
+                // typing, moving away, then typing again should undo as
+                // two separate steps).
+                self.document.break_undo_group();
+
                 let buffer = self.document.buffer();
 
                 let line = pos.line.min(buffer.line_count() - 1);
@@ -110,6 +116,18 @@ impl<S: TextStorage> Editor<S> {
                 self.document.insert(pos, "\n")?;
 
                 self.cursor.set(Position::new(pos.line + 1, 0));
+            }
+
+            Command::Undo => {
+                if let Some(pos) = self.document.undo()? {
+                    self.cursor.set(pos);
+                }
+            }
+
+            Command::Redo => {
+                if let Some(pos) = self.document.redo()? {
+                    self.cursor.set(pos);
+                }
             }
         }
 

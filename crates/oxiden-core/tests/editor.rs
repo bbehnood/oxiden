@@ -257,3 +257,143 @@ fn editing_marks_document_dirty() {
 
     assert!(editor.document().is_dirty());
 }
+
+// ===== Undo/Redo =====
+
+#[test]
+fn undo_reverts_a_single_insert() {
+    let mut editor = editor_with("ab");
+
+    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor.execute(Command::Insert('X')).unwrap();
+    assert_eq!(line(&editor, 0), "aXb");
+
+    editor.execute(Command::Undo).unwrap();
+
+    assert_eq!(line(&editor, 0), "ab");
+    assert_eq!(editor.cursor().position(), Position::new(0, 1));
+}
+
+#[test]
+fn redo_reapplies_an_undone_insert() {
+    let mut editor = editor_with("ab");
+
+    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor.execute(Command::Insert('X')).unwrap();
+    editor.execute(Command::Undo).unwrap();
+    editor.execute(Command::Redo).unwrap();
+
+    assert_eq!(line(&editor, 0), "aXb");
+    assert_eq!(editor.cursor().position(), Position::new(0, 2));
+}
+
+#[test]
+fn consecutive_typing_undoes_in_one_step() {
+    let mut editor = editor_with("");
+
+    editor.execute(Command::Insert('h')).unwrap();
+    editor.execute(Command::Insert('i')).unwrap();
+    editor.execute(Command::Insert('!')).unwrap();
+    assert_eq!(line(&editor, 0), "hi!");
+
+    editor.execute(Command::Undo).unwrap();
+
+    assert_eq!(line(&editor, 0), "");
+}
+
+#[test]
+fn moving_the_cursor_between_edits_breaks_the_undo_group() {
+    let mut editor = editor_with("");
+
+    editor.execute(Command::Insert('a')).unwrap();
+    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor.execute(Command::Insert('b')).unwrap();
+    assert_eq!(line(&editor, 0), "ab");
+
+    editor.execute(Command::Undo).unwrap();
+    assert_eq!(line(&editor, 0), "a");
+
+    editor.execute(Command::Undo).unwrap();
+    assert_eq!(line(&editor, 0), "");
+}
+
+#[test]
+fn undo_reverts_a_backspace() {
+    let mut editor = editor_with("abc");
+
+    editor.execute(Command::MoveTo(Position::new(0, 3))).unwrap();
+    editor.execute(Command::Backspace).unwrap();
+    assert_eq!(line(&editor, 0), "ab");
+
+    editor.execute(Command::Undo).unwrap();
+
+    assert_eq!(line(&editor, 0), "abc");
+    assert_eq!(editor.cursor().position(), Position::new(0, 3));
+}
+
+#[test]
+fn undo_reverts_a_newline_and_rejoins_the_lines() {
+    let mut editor = editor_with("HelloWorld");
+
+    editor.execute(Command::MoveTo(Position::new(0, 5))).unwrap();
+    editor.execute(Command::NewLine).unwrap();
+    assert_eq!(editor.document().buffer().line_count(), 2);
+
+    editor.execute(Command::Undo).unwrap();
+
+    assert_eq!(editor.document().buffer().line_count(), 1);
+    assert_eq!(line(&editor, 0), "HelloWorld");
+    assert_eq!(editor.cursor().position(), Position::new(0, 5));
+}
+
+#[test]
+fn undo_reverts_a_delete_range() {
+    let mut editor = editor_with("Hello World");
+
+    editor
+        .execute(Command::DeleteRange(Range::new(
+            Position::new(0, 5),
+            Position::new(0, 11),
+        )))
+        .unwrap();
+    assert_eq!(line(&editor, 0), "Hello");
+
+    editor.execute(Command::Undo).unwrap();
+
+    assert_eq!(line(&editor, 0), "Hello World");
+}
+
+#[test]
+fn undo_with_nothing_to_undo_is_a_no_op() {
+    let mut editor = editor_with("abc");
+
+    editor.execute(Command::Undo).unwrap();
+
+    assert_eq!(line(&editor, 0), "abc");
+    assert_eq!(editor.cursor().position(), Position::new(0, 0));
+}
+
+#[test]
+fn redo_with_nothing_to_redo_is_a_no_op() {
+    let mut editor = editor_with("abc");
+
+    editor.execute(Command::Redo).unwrap();
+
+    assert_eq!(line(&editor, 0), "abc");
+}
+
+#[test]
+fn new_edit_after_undo_clears_the_redo_stack() {
+    let mut editor = editor_with("");
+
+    editor.execute(Command::Insert('a')).unwrap();
+    editor.execute(Command::Undo).unwrap();
+    editor.execute(Command::Insert('b')).unwrap();
+
+    // The redone-then-overwritten "a" should be gone for good.
+    editor.execute(Command::Redo).unwrap();
+
+    assert_eq!(line(&editor, 0), "b");
+}
+
+
