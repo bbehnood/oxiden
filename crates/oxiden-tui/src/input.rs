@@ -55,13 +55,20 @@ pub enum Move {
 /// letters and shifted symbols) become [`Command::Insert`]; everything
 /// else is either a fixed editing command, a cursor motion, or one of
 /// the application-level shortcuts (Ctrl+Q to quit, Ctrl+S to save,
-/// F2 to save as). Any combination not covered here maps to
-/// [`Action::Noop`].
+/// F2 to save as, Ctrl+Z to undo, Ctrl+R to redo). Any combination not
+/// covered here maps to [`Action::Noop`].
 pub fn map_key(key: KeyEvent) -> Action {
     match (key.code, key.modifiers) {
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => Action::Quit,
         (KeyCode::Char('s'), KeyModifiers::CONTROL) => Action::Save,
         (KeyCode::F(2), _) => Action::SaveAs,
+
+        (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
+            Action::Edit(Command::Undo)
+        }
+        (KeyCode::Char('r'), KeyModifiers::CONTROL) => {
+            Action::Edit(Command::Redo)
+        }
 
         (KeyCode::Char(c), m) if m.is_empty() || m == KeyModifiers::SHIFT => {
             Action::Edit(Command::Insert(c))
@@ -563,5 +570,26 @@ mod tests {
         let action = map_key(key(KeyCode::Char('s'), KeyModifiers::NONE));
 
         assert_eq!(action, Action::Edit(Command::Insert('s')));
+    }
+
+    #[test]
+    fn ctrl_z_undoes() {
+        let action = map_key(key(KeyCode::Char('z'), KeyModifiers::CONTROL));
+
+        assert_eq!(action, Action::Edit(Command::Undo));
+    }
+
+    #[test]
+    fn ctrl_r_redoes() {
+        let action = map_key(key(KeyCode::Char('r'), KeyModifiers::CONTROL));
+
+        assert_eq!(action, Action::Edit(Command::Redo));
+    }
+
+    #[test]
+    fn plain_z_still_inserts_character() {
+        let action = map_key(key(KeyCode::Char('z'), KeyModifiers::NONE));
+
+        assert_eq!(action, Action::Edit(Command::Insert('z')));
     }
 }
