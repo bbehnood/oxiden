@@ -5,6 +5,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::history::{Edit, History};
 use crate::{DocumentError, Result};
 use oxiden_buffer::{Buffer, Position, Range, TextStorage};
 
@@ -32,6 +33,7 @@ pub struct Document<S: TextStorage> {
     dirty: bool,
     line_ending: LineEnding,
     trailing_newline: bool,
+    history: History,
 }
 
 impl LineEnding {
@@ -62,6 +64,7 @@ impl<S: TextStorage> Document<S> {
             dirty: false,
             line_ending: LineEnding::Lf,
             trailing_newline: true,
+            history: History::new(),
         }
     }
 
@@ -93,7 +96,8 @@ impl<S: TextStorage> Document<S> {
         self.line_ending
     }
 
-    /// Inserts `text` at `pos` and marks the document dirty.
+    /// Inserts `text` at `pos`, marks the document dirty, and records the
+    /// edit so it can be undone.
     pub fn insert(
         &mut self,
         pos: Position,
@@ -101,14 +105,131 @@ impl<S: TextStorage> Document<S> {
     ) -> oxiden_buffer::Result<()> {
         self.buffer.insert(pos, text)?;
         self.dirty = true;
+        self.history.record(Edit {
+            pos,
+            removed: String::new(),
+            inserted: text.to_string(),
+        });
         Ok(())
     }
 
-    /// Deletes the text spanned by `range` and marks the document dirty.
+    /// Deletes the text spanned by `range`, marks the document dirty, and
+    /// records the edit so it can be undone.
     pub fn delete(&mut self, range: Range) -> oxiden_buffer::Result<()> {
+        let removed = self.buffer.text_in_range(range);
+
         self.buffer.delete(range)?;
         self.dirty = true;
+        self.history.record(Edit {
+            pos: range.start,
+            removed,
+            inserted: String::new(),
+        });
         Ok(())
+    }
+
+    /// Closes the in-progress undo group, so a later edit starts a new
+    /// group instead of merging into the previous one. Called by
+    /// [`crate::Editor`] on cursor moves.
+    pub fn break_undo_group(&mut self) {
+        self.history.break_group();
+    }
+
+    /// Whether there is an edit available to undo.
+    pub fn can_undo(&self) -> bool {
+        self.history.can_undo()
+    }
+
+    /// Whether there is an edit available to redo.
+    pub fn can_redo(&self) -> bool {
+        self.history.can_redo()
+    }
+
+    /// Reverts the most recent group of edits (e.g. a whole run of typed
+    /// characters, undone in one step). Returns the position the cursor
+    /// should move to, or `None` if there was nothing to undo.
+    ///
+    /// A group's edits were recorded in the order they happened, each
+    /// assuming the ones before it already landed — so undoing has to walk
+    /// the group backwards, reverting the last edit first, then the one
+    /// before it, and so on back to the first.
+    pub fn undo(&mut self) -> oxiden_buffer::Result<Option<Position>> {
+        let Some(group) = self.history.pop_undo() else { return Ok(None) };
+
+        let mut cursor = None;
+
+        for edit in group.iter().rev() {
+            let inverse = edit.inverse();
+            self.apply_raw(&inverse)?;
+            cursor = Some(cursor_after(&inverse));
+        }
+
+        self.dirty = true;
+        // The group itself (still in its original, forward order) is
+        // exactly what redo needs to reapply, so it moves over unchanged.
+        self.history.push_redo(group);
+
+        Ok(cursor)
+    }
+
+    /// Re-applies the most recently undone group of edits, in their
+    /// original forward order. Returns the position the cursor should move
+    /// to, or `None` if there was nothing to redo.
+    pub fn redo(&mut self) -> oxiden_buffer::Result<Option<Position>> {
+        let Some(group) = self.history.pop_redo() else { return Ok(None) };
+
+        let mut cursor = None;
+
+        for edit in group.iter() {
+            self.apply_raw(edit)?;
+            cursor = Some(cursor_after(edit));
+        }
+
+        self.dirty = true;
+        self.history.push_undo(group);
+
+        Ok(cursor)
+    }
+
+    /// Applies `edit`'s effect directly to the buffer — deleting
+    /// `edit.removed` and inserting `edit.inserted` at `edit.pos` — without
+    /// going through [`Self::insert`]/[`Self::delete`], which would record
+    /// a new (and here, redundant) history entry.
+    fn apply_raw(&mut self, edit: &Edit) -> oxiden_buffer::Result<()> {
+        if !edit.removed.is_empty() {
+            let end = end_position(edit.pos, &edit.removed);
+            self.buffer.delete(Range::new(edit.pos, end))?;
+        }
+
+        if !edit.inserted.is_empty() {
+            self.buffer.insert(edit.pos, &edit.inserted)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// The position immediately after `text` (which may contain `\n`) if it
+/// were inserted starting at `pos`. Used to turn a recorded edit's
+/// `removed` string back into a `Range` for deletion.
+fn end_position(pos: Position, text: &str) -> Position {
+    match text.rsplit_once('\n') {
+        None => Position::new(pos.line, pos.column + text.chars().count()),
+        Some((_, last)) => Position::new(
+            pos.line + text.matches('\n').count(),
+            last.chars().count(),
+        ),
+    }
+}
+
+/// Where the cursor should land after `edit` is applied going forward:
+/// the end of whatever it inserted, or its position unchanged if it was a
+/// pure deletion.
+fn cursor_after(edit: &Edit) -> Position {
+    if edit.inserted.is_empty() {
+        edit.pos
+    } else {
+        end_position(edit.pos, &edit.inserted)
     }
 }
 
@@ -149,6 +270,7 @@ impl<S: TextStorage + Default> Document<S> {
             dirty: false,
             line_ending,
             trailing_newline,
+            history: History::new(),
         })
     }
 
