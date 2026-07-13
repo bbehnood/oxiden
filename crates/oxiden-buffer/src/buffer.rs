@@ -79,4 +79,45 @@ impl<S: TextStorage> Buffer<S> {
     pub fn to_text(&self) -> String {
         self.storage.to_text()
     }
+
+    /// Returns the text spanned by `range` (assumed to already be
+    /// normalized, i.e. `range.start <= range.end`).
+    ///
+    /// Used by undo/redo to capture what a deletion is about to remove,
+    /// before it's gone.
+    pub fn text_in_range(&self, range: Range) -> String {
+        if range.start.line == range.end.line {
+            return self
+                .line(range.start.line)
+                .map(|line| {
+                    line.as_ref()
+                        .chars()
+                        .skip(range.start.column)
+                        .take(range.end.column - range.start.column)
+                        .collect()
+                })
+                .unwrap_or_default();
+        }
+
+        let mut text = String::new();
+
+        if let Some(first) = self.line(range.start.line) {
+            text.extend(first.as_ref().chars().skip(range.start.column));
+        }
+
+        for line in range.start.line + 1..range.end.line {
+            text.push('\n');
+            if let Some(line) = self.line(line) {
+                text.push_str(line.as_ref());
+            }
+        }
+
+        text.push('\n');
+
+        if let Some(last) = self.line(range.end.line) {
+            text.extend(last.as_ref().chars().take(range.end.column));
+        }
+
+        text
+    }
 }
