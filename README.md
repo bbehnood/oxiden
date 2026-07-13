@@ -9,6 +9,8 @@ terminal UI are all independent of one another.
 ## Features
 
 - Basic text editing: insert, backspace, delete, and newlines
+- Undo/redo, with consecutive typing and deletion coalesced into a single
+  undo step
 - Arrow-key and Home/End cursor navigation, with wrapping across line
   boundaries and column clamping on shorter lines
 - Open an existing file or start a new one at a given path
@@ -57,6 +59,8 @@ oxiden --backend vec path/to/file.txt
 | `PgUp` / `PgDn`     | Move to the start / end of the file              |
 | `Ctrl+S`            | Save                                             |
 | `F2`                | Save as                                          |
+| `Ctrl+Z`            | Undo                                             |
+| `Ctrl+Y`            | Redo                                             |
 | `Ctrl+Q`            | Quit (press twice if there are unsaved changes)  |
 
 ## Architecture
@@ -103,7 +107,8 @@ Editor semantics built on top of a `Buffer`:
 - `Document<S>` — a buffer plus file metadata: path, dirty flag, and the
   original line-ending/trailing-newline style, with `open`/`save`/`save_as`.
 - `Command` — the set of edit operations a front end can request
-  (`Insert`, `Backspace`, `Delete`, `DeleteRange`, `NewLine`, `MoveTo`, …).
+  (`Insert`, `Backspace`, `Delete`, `DeleteRange`, `NewLine`, `MoveTo`,
+  `Undo`, `Redo`, …).
 - `Editor<S>` — applies `Command`s to a `Document` and keeps the `Cursor`
   consistent with each edit.
 
