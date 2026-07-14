@@ -18,20 +18,19 @@ use oxiden_core::Editor;
 
 use crate::Viewport;
 
-/// How many columns a tab advances to (rounding up to the next stop),
-/// matching common terminal defaults.
-const TAB_WIDTH: usize = 4;
-
 /// Redraws the entire screen: buffer contents, status line, and cursor
 /// position, then flushes stdout so the frame actually appears.
 ///
 /// `message` overrides the default status line (e.g. "Saved" or an error)
 /// for one frame; pass `None` to show the default filename/position
-/// status.
+/// status. `tab_width` controls how many columns a tab advances to,
+/// matching the same setting used to interpret Tab key presses (see
+/// [`oxiden_core::Config::tab_width`]).
 pub fn draw<S: TextStorage>(
     editor: &Editor<S>,
     viewport: &Viewport,
     message: Option<&str>,
+    tab_width: usize,
 ) -> io::Result<()> {
     let mut stdout = io::stdout();
 
@@ -40,9 +39,9 @@ pub fn draw<S: TextStorage>(
     // its final spot.
     queue!(stdout, Clear(ClearType::All), Hide)?;
 
-    draw_buffer(&mut stdout, editor, viewport)?;
-    draw_status_line(&mut stdout, editor, viewport, message)?;
-    position_cursor(&mut stdout, editor, viewport)?;
+    draw_buffer(&mut stdout, editor, viewport, tab_width)?;
+    draw_status_line(&mut stdout, editor, viewport, message, tab_width)?;
+    position_cursor(&mut stdout, editor, viewport, tab_width)?;
 
     stdout.flush()
 }
@@ -54,6 +53,7 @@ fn draw_buffer<S: TextStorage>(
     stdout: &mut impl Write,
     editor: &Editor<S>,
     viewport: &Viewport,
+    tab_width: usize,
 ) -> io::Result<()> {
     let buffer = editor.document().buffer();
 
@@ -62,7 +62,8 @@ fn draw_buffer<S: TextStorage>(
             break;
         };
 
-        let text = clip(line.as_ref(), viewport.left, viewport.width);
+        let text =
+            clip(line.as_ref(), viewport.left, viewport.width, tab_width);
 
         queue!(stdout, MoveTo(0, row as u16), Print(text))?;
     }
@@ -79,8 +80,8 @@ fn draw_buffer<S: TextStorage>(
 /// itself would silently desync our column math from what's actually on
 /// screen, since every other calculation here (including cursor
 /// placement) assumes 1 char == 1 column.
-fn clip(line: &str, left: usize, width: usize) -> String {
-    expand_tabs(line, TAB_WIDTH).chars().skip(left).take(width).collect()
+fn clip(line: &str, left: usize, width: usize, tab_width: usize) -> String {
+    expand_tabs(line, tab_width).chars().skip(left).take(width).collect()
 }
 
 /// Replaces each tab in `line` with spaces out to the next stop of
@@ -135,6 +136,7 @@ fn draw_status_line<S: TextStorage>(
     editor: &Editor<S>,
     viewport: &Viewport,
     message: Option<&str>,
+    tab_width: usize,
 ) -> io::Result<()> {
     let document = editor.document();
     let cursor = editor.cursor().position();
@@ -159,7 +161,7 @@ fn draw_status_line<S: TextStorage>(
         }
     };
 
-    let status = clip(&status, 0, viewport.width);
+    let status = clip(&status, 0, viewport.width, tab_width);
 
     queue!(stdout, MoveTo(0, viewport.height as u16), Print(status))
 }
@@ -178,12 +180,13 @@ fn position_cursor<S: TextStorage>(
     stdout: &mut impl Write,
     editor: &Editor<S>,
     viewport: &Viewport,
+    tab_width: usize,
 ) -> io::Result<()> {
     let cursor = editor.cursor().position();
 
     let line = editor.document().buffer().line(cursor.line);
     let column = line
-        .map(|line| display_column(line.as_ref(), cursor.column, TAB_WIDTH))
+        .map(|line| display_column(line.as_ref(), cursor.column, tab_width))
         .unwrap_or(cursor.column);
 
     let row = (cursor.line - viewport.top) as u16;
@@ -212,12 +215,12 @@ mod tests {
     fn clip_expands_tabs_before_slicing() {
         // A leading tab (width 4) pushes "x" to column 4, so a window
         // starting at column 0 with width 5 should show it.
-        assert_eq!(clip("\tx", 0, 5), "    x");
+        assert_eq!(clip("\tx", 0, 5, 4), "    x");
     }
 
     #[test]
     fn clip_is_still_char_safe_on_utf8() {
-        assert_eq!(clip("héllo", 1, 3), "éll");
+        assert_eq!(clip("héllo", 1, 3, 4), "éll");
     }
 
     #[test]
