@@ -9,39 +9,24 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use oxiden_buffer::{
     Buffer, Range, RopeStorage, RopeyStorage, TextStorage, VecStorage,
 };
-use oxiden_core::{Command, Document, DocumentError, Editor};
-use oxiden_tui::input::{self, Action};
+use oxiden_core::{Backend, Command, Config, Document, DocumentError, Editor};
+use oxiden_tui::input::{self, Action, Move};
 use oxiden_tui::{Terminal, Viewport, render};
 
-/// Which [`TextStorage`] implementation to run the editor with, selected
-/// via `--backend`. Defaults to [`Backend::Vec`], the simplest and best
-/// tested of the three.
-#[derive(Debug, Clone, Copy)]
-enum Backend {
-    /// [`VecStorage`]: one `String` per line.
-    Vec,
-    /// [`RopeStorage`]: a hand-rolled rope.
-    Rope,
-    /// [`RopeyStorage`]: a rope backed by the `ropey` crate.
-    Ropey,
-}
-
-impl Backend {
-    fn parse(name: &str) -> Option<Self> {
-        match name {
-            "vec" => Some(Backend::Vec),
-            "rope" => Some(Backend::Rope),
-            "ropey" => Some(Backend::Ropey),
-            _ => None,
-        }
-    }
-}
-
 fn main() -> io::Result<()> {
+    let config = match Config::load() {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("oxiden: {err}");
+            std::process::exit(1);
+        }
+    };
+
     // A tiny hand-rolled parser rather than pulling in an args crate for
     // two flags: `--backend <vec|rope|ropey>` (or `--backend=<value>`),
-    // and a single positional file path.
-    let mut backend = Backend::Ropey;
+    // and a single positional file path. `--backend` overrides whatever
+    // the config file (or its default) says.
+    let mut backend = config.backend;
     let mut path: Option<String> = None;
     let mut args = std::env::args().skip(1);
 
@@ -73,15 +58,18 @@ fn main() -> io::Result<()> {
     }
 
     match backend {
-        Backend::Vec => run_with::<VecStorage>(path),
-        Backend::Rope => run_with::<RopeStorage>(path),
-        Backend::Ropey => run_with::<RopeyStorage>(path),
+        Backend::Vec => run_with::<VecStorage>(path, &config),
+        Backend::Rope => run_with::<RopeStorage>(path, &config),
+        Backend::Ropey => run_with::<RopeyStorage>(path, &config),
     }
 }
 
 /// Opens `path` (or starts a scratch buffer if `path` is `None`) with
 /// storage backend `S`, then drives the editor until it quits.
-fn run_with<S: TextStorage + Default>(path: Option<String>) -> io::Result<()> {
+fn run_with<S: TextStorage + Default>(
+    path: Option<String>,
+    config: &Config,
+) -> io::Result<()> {
     // With a file argument: open it, or start a new (unsaved-to-disk)
     // document at that path if it doesn't exist yet. Any other I/O error
     // (e.g. permissions) is fatal. With no argument: start a scratch
@@ -116,7 +104,7 @@ fn run_with<S: TextStorage + Default>(path: Option<String>) -> io::Result<()> {
         eprintln!("{info}");
     }));
 
-    let result = run(&mut editor);
+    let result = run(&mut editor, config);
 
     // Explicit drop (rather than letting it happen at end of scope) so the
     // terminal is restored before `result`'s error, if any, gets printed
@@ -151,7 +139,10 @@ impl Prompt {
 
 /// The main input/render loop: draw the current state, wait for the next
 /// terminal event, apply it, repeat until the user quits.
-fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
+fn run<S: TextStorage>(
+    editor: &mut Editor<S>,
+    config: &Config,
+) -> io::Result<()> {
     let (cols, rows) = Terminal::size()?;
 
     // Reserve the last row for the status line.
@@ -169,7 +160,12 @@ fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
         // can see what they're typing.
         let status_line =
             prompt.as_ref().map(Prompt::render).or_else(|| status.clone());
-        render::draw(editor, &viewport, status_line.as_deref())?;
+        render::draw(
+            editor,
+            &viewport,
+            status_line.as_deref(),
+            config.tab_width,
+        )?;
 
         match event::read()? {
             // `KeyEventKind::Press` filters out the release/repeat events
@@ -218,7 +214,7 @@ fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
                     continue;
                 }
 
-                let action = input::map_key(key);
+                let action = input::map_key(key, config);
 
                 if matches!(action, Action::Quit) {
                     // Require confirmation (a second Ctrl+Q) before
@@ -254,9 +250,15 @@ fn run<S: TextStorage>(editor: &mut Editor<S>) -> io::Result<()> {
                             movement,
                         );
 
+                        let vertical =
+                            matches!(movement, Move::Up | Move::Down);
+
                         // MoveTo never fails, so the result can be
                         // discarded.
-                        let _ = editor.execute(Command::MoveTo(target));
+                        let _ = editor.execute(Command::MoveTo {
+                            position: target,
+                            vertical,
+                        });
                     }
 
                     Action::DeleteTo(movement) => {

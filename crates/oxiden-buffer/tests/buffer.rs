@@ -58,3 +58,42 @@ fn invalid_position_propagates() {
 
     assert!(buffer.insert(Position::new(42, 0), "hello").is_err());
 }
+
+#[test]
+fn text_in_range_single_line() {
+    let mut buffer = Buffer::new(VecStorage::new());
+
+    buffer.insert(Position::new(0, 0), "Hello World").unwrap();
+
+    let text = buffer
+        .text_in_range(Range::new(Position::new(0, 6), Position::new(0, 11)));
+
+    assert_eq!(text, "World");
+}
+
+#[test]
+fn text_in_range_multiline() {
+    let mut buffer = Buffer::new(VecStorage::new());
+
+    buffer.insert(Position::new(0, 0), "Hello\nBeautiful\nWorld").unwrap();
+
+    let text = buffer
+        .text_in_range(Range::new(Position::new(0, 2), Position::new(2, 3)));
+
+    assert_eq!(text, "llo\nBeautiful\nWor");
+}
+
+#[test]
+fn text_in_range_round_trips_with_delete() {
+    let mut buffer = Buffer::new(VecStorage::new());
+
+    buffer.insert(Position::new(0, 0), "Hello Beautiful World").unwrap();
+
+    let range = Range::new(Position::new(0, 6), Position::new(0, 16));
+    let removed = buffer.text_in_range(range);
+
+    buffer.delete(range).unwrap();
+    buffer.insert(range.start, &removed).unwrap();
+
+    assert_eq!(buffer.line(0), Some("Hello Beautiful World"));
+}

@@ -9,6 +9,8 @@ terminal UI are all independent of one another.
 ## Features
 
 - Basic text editing: insert, backspace, delete, and newlines
+- Undo/redo, with consecutive typing and deletion coalesced into a single
+  undo step
 - Arrow-key and Home/End cursor navigation, with wrapping across line
   boundaries and column clamping on shorter lines
 - Open an existing file or start a new one at a given path
@@ -17,6 +19,8 @@ terminal UI are all independent of one another.
 - Unsaved-changes indicator and a confirmation prompt before quitting with
   unsaved changes
 - Full Unicode support — positions are tracked in characters, not bytes
+- Configurable via an optional file (tab width, spaces-vs-tabs, default
+  storage backend); see [Configuration](#configuration)
 
 ## Installation
 
@@ -37,7 +41,8 @@ oxiden path/to/file.txt
 # Start with an empty, unnamed buffer
 oxiden
 
-# Choose a storage backend (defaults to ropey): vec, rope, or ropey
+# Choose a storage backend (overrides the config file, defaults to
+# ropey): vec, rope, or ropey
 oxiden --backend vec path/to/file.txt
 ```
 
@@ -46,7 +51,7 @@ oxiden --backend vec path/to/file.txt
 | Key                | Action                                          |
 | ------------------ | ------------------------------------------------ |
 | Any character       | Insert at cursor                                 |
-| `Tab`               | Insert a tab character                           |
+| `Tab`               | Insert a tab character (or spaces, if configured) |
 | `Enter`             | Insert a newline                                 |
 | `Backspace`         | Delete the character before the cursor           |
 | `Delete`            | Delete the character at the cursor               |
@@ -57,7 +62,38 @@ oxiden --backend vec path/to/file.txt
 | `PgUp` / `PgDn`     | Move to the start / end of the file              |
 | `Ctrl+S`            | Save                                             |
 | `F2`                | Save as                                          |
+| `Ctrl+Z`            | Undo                                             |
+| `Ctrl+Y`            | Redo                                             |
 | `Ctrl+Q`            | Quit (press twice if there are unsaved changes)  |
+
+## Configuration
+
+Oxiden reads an optional config file at startup:
+
+- `$XDG_CONFIG_HOME/oxiden/config.toml`, or `~/.config/oxiden/config.toml`
+  if `XDG_CONFIG_HOME` isn't set.
+- Set `OXIDEN_CONFIG=/path/to/file` to point at a config file somewhere
+  else instead.
+
+A missing file is fine — every setting has a default. The format is a
+flat, TOML-compatible `key = value` syntax (no tables), one setting per
+line, with `#` for comments:
+
+```toml
+# ~/.config/oxiden/config.toml
+tab_width = 2
+insert_spaces_for_tab = true
+backend = "ropey"
+```
+
+| Key                     | Default  | Meaning                                              |
+| ------------------------ | -------- | ----------------------------------------------------- |
+| `tab_width`              | `4`      | Columns a tab advances to on screen, and the number of spaces used for it when `insert_spaces_for_tab` is set. |
+| `insert_spaces_for_tab`  | `false`  | Whether `Tab` inserts spaces instead of a literal tab character. |
+| `backend`                | `ropey`  | Default storage backend (`vec`, `rope`, or `ropey`); overridden by `--backend` on the command line. |
+
+A malformed file (an unknown key, or a value of the wrong type) is
+reported on startup rather than silently ignored.
 
 ## Architecture
 
@@ -103,9 +139,12 @@ Editor semantics built on top of a `Buffer`:
 - `Document<S>` — a buffer plus file metadata: path, dirty flag, and the
   original line-ending/trailing-newline style, with `open`/`save`/`save_as`.
 - `Command` — the set of edit operations a front end can request
-  (`Insert`, `Backspace`, `Delete`, `DeleteRange`, `NewLine`, `MoveTo`, …).
+  (`Insert`, `Backspace`, `Delete`, `DeleteRange`, `NewLine`, `MoveTo`,
+  `Undo`, `Redo`, …).
 - `Editor<S>` — applies `Command`s to a `Document` and keeps the `Cursor`
   consistent with each edit.
+- `Config` — user-configurable settings (tab width, storage backend, …),
+  loaded from an optional file; see [Configuration](#configuration).
 
 ### `oxiden-tui`
 

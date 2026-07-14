@@ -9,6 +9,11 @@
 //! - [`Command`]: the set of edit operations a UI can request.
 //! - [`Editor`]: ties a `Document` and `Cursor` together and applies
 //!   `Command`s to both, keeping the cursor consistent with each edit.
+//! - [`History`]: an undo/redo log of small reversible [`Edit`]s, owned by
+//!   `Document` and updated automatically by every insert/delete.
+//! - [`Config`]: user-configurable settings (tab width, backend, …),
+//!   loaded from an optional file — see the `config` module for the
+//!   file format and lookup rules.
 //!
 //! This crate has no dependency on any particular UI toolkit — `Command`
 //! and `Editor` are input-agnostic, which is what lets `oxiden-tui`
@@ -16,13 +21,17 @@
 //! anything about terminals or key codes.
 
 pub mod command;
+pub mod config;
 pub mod cursor;
 pub mod document;
 pub mod editor;
 pub mod error;
+pub mod history;
 
 pub use command::Command;
+pub use config::{Backend, Config, ConfigError};
 pub use cursor::Cursor;
 pub use document::Document;
 pub use editor::Editor;
 pub use error::{DocumentError, Result};
+pub use history::{Edit, History};
