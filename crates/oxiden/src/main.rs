@@ -10,7 +10,7 @@ use oxiden_buffer::{
     Buffer, Range, RopeStorage, RopeyStorage, TextStorage, VecStorage,
 };
 use oxiden_core::{Backend, Command, Config, Document, DocumentError, Editor};
-use oxiden_tui::input::{self, Action};
+use oxiden_tui::input::{self, Action, Move};
 use oxiden_tui::{Terminal, Viewport, render};
 
 fn main() -> io::Result<()> {
@@ -250,9 +250,15 @@ fn run<S: TextStorage>(
                             movement,
                         );
 
+                        let vertical =
+                            matches!(movement, Move::Up | Move::Down);
+
                         // MoveTo never fails, so the result can be
                         // discarded.
-                        let _ = editor.execute(Command::MoveTo(target));
+                        let _ = editor.execute(Command::MoveTo {
+                            position: target,
+                            vertical,
+                        });
                     }
 
                     Action::DeleteTo(movement) => {

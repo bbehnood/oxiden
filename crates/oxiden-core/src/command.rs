@@ -10,7 +10,7 @@ use oxiden_buffer::{Position, Range};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     /// Move the cursor to an absolute position, without editing text.
-    MoveTo(Position),
+    MoveTo { position: Position, vertical: bool },
 
     /// Insert a single character at the cursor.
     Insert(char),

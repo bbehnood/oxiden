@@ -35,7 +35,7 @@ impl<S: TextStorage> Editor<S> {
     }
 
     /// Mutable access to the document, for operations outside the
-    /// `Command` set (e.g. saving).
+    /// `Command` move_to (e.g. saving).
     pub fn document_mut(&mut self) -> &mut Document<S> {
         &mut self.document
     }
@@ -47,7 +47,7 @@ impl<S: TextStorage> Editor<S> {
     /// moved.
     pub fn execute(&mut self, command: Command) -> Result<()> {
         match command {
-            Command::MoveTo(pos) => {
+            Command::MoveTo { position, vertical } => {
                 // A cursor move with no edit means whatever comes next
                 // shouldn't merge into the previous undo group (e.g.
                 // typing, moving away, then typing again should undo as
@@ -56,17 +56,29 @@ impl<S: TextStorage> Editor<S> {
 
                 let buffer = self.document.buffer();
 
-                let line = pos.line.min(buffer.line_count() - 1);
-                let column = pos.column.min(buffer.line_len(line).unwrap_or(0));
+                let line = position.line.min(buffer.line_count() - 1);
 
-                self.cursor.set(Position::new(line, column));
+                let column = if vertical {
+                    self.cursor
+                        .preferred_column()
+                        .min(buffer.line_len(line).unwrap_or(0))
+                } else {
+                    position.column.min(buffer.line_len(line).unwrap_or(0))
+                };
+
+                if vertical {
+                    self.cursor.move_vertical_to(Position::new(line, column));
+                } else {
+                    self.cursor.move_to(Position::new(line, column));
+                }
             }
+
             Command::Insert(ch) => {
                 let pos = self.cursor.position();
 
                 self.document.insert(pos, &ch.to_string())?;
 
-                self.cursor.set(Position::new(pos.line, pos.column + 1));
+                self.cursor.move_to(Position::new(pos.line, pos.column + 1));
             }
 
             Command::InsertText(text) => {
@@ -82,12 +94,12 @@ impl<S: TextStorage> Editor<S> {
                 let parts: Vec<&str> = text.split('\n').collect();
 
                 if parts.len() == 1 {
-                    self.cursor.set(Position::new(
+                    self.cursor.move_to(Position::new(
                         pos.line,
                         pos.column + parts[0].chars().count(),
                     ));
                 } else {
-                    self.cursor.set(Position::new(
+                    self.cursor.move_to(Position::new(
                         pos.line + parts.len() - 1,
                         parts.last().unwrap().chars().count(),
                     ));
@@ -107,7 +119,7 @@ impl<S: TextStorage> Editor<S> {
                 }
 
                 self.document.delete(range)?;
-                self.cursor.set(range.start);
+                self.cursor.move_to(range.start);
             }
 
             Command::NewLine => {
@@ -115,18 +127,18 @@ impl<S: TextStorage> Editor<S> {
 
                 self.document.insert(pos, "\n")?;
 
-                self.cursor.set(Position::new(pos.line + 1, 0));
+                self.cursor.move_to(Position::new(pos.line + 1, 0));
             }
 
             Command::Undo => {
                 if let Some(pos) = self.document.undo()? {
-                    self.cursor.set(pos);
+                    self.cursor.move_to(pos);
                 }
             }
 
             Command::Redo => {
                 if let Some(pos) = self.document.redo()? {
-                    self.cursor.set(pos);
+                    self.cursor.move_to(pos);
                 }
             }
         }
@@ -152,7 +164,7 @@ impl<S: TextStorage> Editor<S> {
 
             self.document.delete(Range::new(start, pos))?;
 
-            self.cursor.set(start);
+            self.cursor.move_to(start);
 
             return Ok(());
         }
@@ -172,7 +184,7 @@ impl<S: TextStorage> Editor<S> {
 
         self.document.delete(Range::new(start, pos))?;
 
-        self.cursor.set(start);
+        self.cursor.move_to(start);
 
         Ok(())
     }

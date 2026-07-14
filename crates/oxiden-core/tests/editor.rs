@@ -19,7 +19,12 @@ fn line(editor: &Editor<VecStorage>, index: usize) -> String {
 fn move_to_sets_cursor_position() {
     let mut editor = editor_with("Hello\nWorld");
 
-    editor.execute(Command::MoveTo(Position::new(1, 3))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(1, 3),
+            vertical: false,
+        })
+        .unwrap();
 
     assert_eq!(editor.cursor().position(), Position::new(1, 3));
 }
@@ -28,7 +33,12 @@ fn move_to_sets_cursor_position() {
 fn move_to_clamps_out_of_range_line() {
     let mut editor = editor_with("Hello\nWorld");
 
-    editor.execute(Command::MoveTo(Position::new(99, 0))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(99, 0),
+            vertical: false,
+        })
+        .unwrap();
 
     assert_eq!(editor.cursor().position(), Position::new(1, 0));
 }
@@ -37,7 +47,12 @@ fn move_to_clamps_out_of_range_line() {
 fn move_to_clamps_out_of_range_column() {
     let mut editor = editor_with("Hello\nWorld");
 
-    editor.execute(Command::MoveTo(Position::new(0, 99))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 99),
+            vertical: false,
+        })
+        .unwrap();
 
     assert_eq!(editor.cursor().position(), Position::new(0, 5));
 }
@@ -59,7 +74,12 @@ fn insert_char_writes_and_advances_cursor() {
 fn insert_char_at_cursor_position() {
     let mut editor = editor_with("ac");
 
-    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 1),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Insert('b')).unwrap();
 
     assert_eq!(line(&editor, 0), "abc");
@@ -95,7 +115,12 @@ fn insert_text_multiline_places_cursor_on_last_line() {
 fn insert_text_multiline_in_middle_of_line_splits_tail_onto_last_part() {
     let mut editor = editor_with("HelloWorld");
 
-    editor.execute(Command::MoveTo(Position::new(0, 5))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 5),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::InsertText("\n".to_string())).unwrap();
 
     assert_eq!(line(&editor, 0), "Hello");
@@ -128,7 +153,12 @@ fn backspace_at_document_start_is_noop() {
 fn backspace_within_line_deletes_previous_char_and_moves_cursor_left() {
     let mut editor = editor_with("abc");
 
-    editor.execute(Command::MoveTo(Position::new(0, 2))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 2),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Backspace).unwrap();
 
     assert_eq!(line(&editor, 0), "ac");
@@ -139,7 +169,12 @@ fn backspace_within_line_deletes_previous_char_and_moves_cursor_left() {
 fn backspace_at_column_zero_joins_with_previous_line() {
     let mut editor = editor_with("Hello\nWorld");
 
-    editor.execute(Command::MoveTo(Position::new(1, 0))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(1, 0),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Backspace).unwrap();
 
     assert_eq!(editor.document().buffer().line_count(), 1);
@@ -153,7 +188,12 @@ fn backspace_at_column_zero_joins_with_previous_line() {
 fn delete_at_document_end_is_noop() {
     let mut editor = editor_with("abc");
 
-    editor.execute(Command::MoveTo(Position::new(0, 3))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 3),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Delete).unwrap();
 
     assert_eq!(line(&editor, 0), "abc");
@@ -164,7 +204,12 @@ fn delete_at_document_end_is_noop() {
 fn delete_within_line_removes_next_char_and_keeps_cursor() {
     let mut editor = editor_with("abc");
 
-    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 1),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Delete).unwrap();
 
     assert_eq!(line(&editor, 0), "ac");
@@ -175,7 +220,12 @@ fn delete_within_line_removes_next_char_and_keeps_cursor() {
 fn delete_at_end_of_line_joins_with_next_line() {
     let mut editor = editor_with("Hello\nWorld");
 
-    editor.execute(Command::MoveTo(Position::new(0, 5))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 5),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Delete).unwrap();
 
     assert_eq!(editor.document().buffer().line_count(), 1);
@@ -236,7 +286,12 @@ fn delete_range_with_invalid_position_returns_error() {
 fn new_line_splits_current_line_and_moves_cursor_to_next_line_start() {
     let mut editor = editor_with("HelloWorld");
 
-    editor.execute(Command::MoveTo(Position::new(0, 5))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 5),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::NewLine).unwrap();
 
     assert_eq!(editor.document().buffer().line_count(), 2);
@@ -264,7 +319,12 @@ fn editing_marks_document_dirty() {
 fn undo_reverts_a_single_insert() {
     let mut editor = editor_with("ab");
 
-    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 1),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Insert('X')).unwrap();
     assert_eq!(line(&editor, 0), "aXb");
 
@@ -278,7 +338,12 @@ fn undo_reverts_a_single_insert() {
 fn redo_reapplies_an_undone_insert() {
     let mut editor = editor_with("ab");
 
-    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 1),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Insert('X')).unwrap();
     editor.execute(Command::Undo).unwrap();
     editor.execute(Command::Redo).unwrap();
@@ -306,7 +371,12 @@ fn moving_the_cursor_between_edits_breaks_the_undo_group() {
     let mut editor = editor_with("");
 
     editor.execute(Command::Insert('a')).unwrap();
-    editor.execute(Command::MoveTo(Position::new(0, 1))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 1),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Insert('b')).unwrap();
     assert_eq!(line(&editor, 0), "ab");
 
@@ -321,7 +391,12 @@ fn moving_the_cursor_between_edits_breaks_the_undo_group() {
 fn undo_reverts_a_backspace() {
     let mut editor = editor_with("abc");
 
-    editor.execute(Command::MoveTo(Position::new(0, 3))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 3),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::Backspace).unwrap();
     assert_eq!(line(&editor, 0), "ab");
 
@@ -335,7 +410,12 @@ fn undo_reverts_a_backspace() {
 fn undo_reverts_a_newline_and_rejoins_the_lines() {
     let mut editor = editor_with("HelloWorld");
 
-    editor.execute(Command::MoveTo(Position::new(0, 5))).unwrap();
+    editor
+        .execute(Command::MoveTo {
+            position: Position::new(0, 5),
+            vertical: false,
+        })
+        .unwrap();
     editor.execute(Command::NewLine).unwrap();
     assert_eq!(editor.document().buffer().line_count(), 2);
 
@@ -395,5 +475,3 @@ fn new_edit_after_undo_clears_the_redo_stack() {
 
     assert_eq!(line(&editor, 0), "b");
 }
-
-
