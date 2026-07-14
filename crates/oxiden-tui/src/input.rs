@@ -3,7 +3,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use oxiden_buffer::{Buffer, Position, TextStorage};
-use oxiden_core::Command;
+use oxiden_core::{Command, Config};
 
 /// The result of interpreting a key press: either an edit to apply, a
 /// cursor motion to resolve, or a UI-level request (save/quit/nothing).
@@ -57,7 +57,11 @@ pub enum Move {
 /// the application-level shortcuts (Ctrl+Q to quit, Ctrl+S to save,
 /// F2 to save as, Ctrl+Z to undo, Ctrl+R to redo). Any combination not
 /// covered here maps to [`Action::Noop`].
-pub fn map_key(key: KeyEvent) -> Action {
+///
+/// `config` only affects one key: Tab inserts `config.tab_width` spaces
+/// when [`Config::insert_spaces_for_tab`] is set, and a literal tab
+/// character otherwise.
+pub fn map_key(key: KeyEvent, config: &Config) -> Action {
     match (key.code, key.modifiers) {
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => Action::Quit,
         (KeyCode::Char('s'), KeyModifiers::CONTROL) => Action::Save,
@@ -78,7 +82,13 @@ pub fn map_key(key: KeyEvent) -> Action {
             Action::DeleteTo(Move::WordRight)
         }
 
+        (KeyCode::Tab, _) if config.insert_spaces_for_tab => {
+            Action::Edit(Command::InsertText(
+                " ".repeat(config.tab_width.max(1)),
+            ))
+        }
         (KeyCode::Tab, _) => Action::Edit(Command::Insert('\t')),
+
         (KeyCode::Enter, _) => Action::Edit(Command::NewLine),
         (KeyCode::Backspace, _) => Action::Edit(Command::Backspace),
         (KeyCode::Delete, _) => Action::Edit(Command::Delete),
@@ -548,48 +558,74 @@ mod tests {
         KeyEvent::new(code, modifiers)
     }
 
+    fn config() -> Config {
+        Config::default()
+    }
+
     #[test]
     fn ctrl_s_saves() {
-        let action = map_key(key(KeyCode::Char('s'), KeyModifiers::CONTROL));
+        let action =
+            map_key(key(KeyCode::Char('s'), KeyModifiers::CONTROL), &config());
 
         assert_eq!(action, Action::Save);
     }
 
     #[test]
     fn f2_saves_as() {
-        let action = map_key(key(
-            KeyCode::F(2),
-            KeyModifiers::CONTROL | KeyModifiers::SHIFT,
-        ));
+        let action = map_key(
+            key(KeyCode::F(2), KeyModifiers::CONTROL | KeyModifiers::SHIFT),
+            &config(),
+        );
 
         assert_eq!(action, Action::SaveAs);
     }
 
     #[test]
     fn plain_s_inserts_character() {
-        let action = map_key(key(KeyCode::Char('s'), KeyModifiers::NONE));
+        let action =
+            map_key(key(KeyCode::Char('s'), KeyModifiers::NONE), &config());
 
         assert_eq!(action, Action::Edit(Command::Insert('s')));
     }
 
     #[test]
     fn ctrl_z_undoes() {
-        let action = map_key(key(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        let action =
+            map_key(key(KeyCode::Char('z'), KeyModifiers::CONTROL), &config());
 
         assert_eq!(action, Action::Edit(Command::Undo));
     }
 
     #[test]
     fn ctrl_r_redoes() {
-        let action = map_key(key(KeyCode::Char('r'), KeyModifiers::CONTROL));
+        let action =
+            map_key(key(KeyCode::Char('r'), KeyModifiers::CONTROL), &config());
 
         assert_eq!(action, Action::Edit(Command::Redo));
     }
 
     #[test]
     fn plain_z_still_inserts_character() {
-        let action = map_key(key(KeyCode::Char('z'), KeyModifiers::NONE));
+        let action =
+            map_key(key(KeyCode::Char('z'), KeyModifiers::NONE), &config());
 
         assert_eq!(action, Action::Edit(Command::Insert('z')));
+    }
+
+    #[test]
+    fn tab_inserts_a_literal_tab_by_default() {
+        let action = map_key(key(KeyCode::Tab, KeyModifiers::NONE), &config());
+
+        assert_eq!(action, Action::Edit(Command::Insert('\t')));
+    }
+
+    #[test]
+    fn tab_inserts_spaces_when_configured() {
+        let config =
+            Config { insert_spaces_for_tab: true, tab_width: 2, ..config() };
+
+        let action = map_key(key(KeyCode::Tab, KeyModifiers::NONE), &config);
+
+        assert_eq!(action, Action::Edit(Command::InsertText("  ".into())));
     }
 }
