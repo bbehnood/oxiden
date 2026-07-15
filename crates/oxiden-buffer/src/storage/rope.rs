@@ -25,6 +25,18 @@ use crate::{BufferError, Position, Range, Result, TextStorage};
 /// edit's leaf-level work bounded, independent of overall document size.
 const MAX_LEAF_LEN: usize = 1024;
 
+/// Subtrees smaller than this are never rebalanced, regardless of how
+/// skewed they are: at this size the depth difference a rebuild would buy
+/// back is negligible, so it's not worth paying for.
+const REBALANCE_MIN_CHARS: usize = 2 * MAX_LEAF_LEN;
+
+/// How skewed a subtree is allowed to get before [`Node::rebalance_if_needed`]
+/// rebuilds it. A value of `0.25` means: once the smaller side drops below
+/// 25% of the subtree's total size, rebuild. Smaller values rebalance less
+/// often (cheaper, but allows more skew); larger values keep the tree
+/// closer to perfectly balanced at the cost of more rebuilds.
+const IMBALANCE_FACTOR: f64 = 0.25;
+
 /// A node in the rope tree: either a chunk of text, or a fork joining two
 /// subtrees end-to-end (left's text immediately followed by right's).
 enum Node {
@@ -45,17 +57,23 @@ struct Internal {
     /// the left/right boundary (if the left subtree doesn't end in `\n`) is
     /// one logical line split across both children.
     left_newlines: usize,
+    /// Character count of this *entire* subtree (left + right). Kept
+    /// alongside `left_chars` so [`Node::rebalance_if_needed`] can read
+    /// both sides' sizes in O(1) rather than walking the right subtree.
+    chars: usize,
 }
 
 impl Node {
     /// Builds a (roughly balanced) subtree for `text` by recursively
     /// bisecting until every leaf is at or under [`MAX_LEAF_LEN`].
     fn from_str(text: &str) -> Self {
-        if text.chars().count() <= MAX_LEAF_LEN {
+        let total_chars = text.chars().count();
+
+        if total_chars <= MAX_LEAF_LEN {
             return Node::Leaf(text.to_string());
         }
 
-        let mid = text.chars().count() / 2;
+        let mid = total_chars / 2;
         let byte_mid = char_to_byte(text, mid);
         let (left_text, right_text) = text.split_at(byte_mid);
 
@@ -64,7 +82,40 @@ impl Node {
             right: Box::new(Node::from_str(right_text)),
             left_chars: left_text.chars().count(),
             left_newlines: left_text.matches('\n').count(),
+            chars: total_chars,
         })
+    }
+
+    /// After an edit changes this subtree's shape, checks whether it has
+    /// become skewed enough to hurt performance and, if so, rebuilds it
+    /// into a balanced subtree from scratch.
+    ///
+    /// This is what keeps [`RopeStorage`] close to its advertised
+    /// `O(log n)` behavior under one-sided edit patterns — most notably
+    /// sequential typing, which (without this) repeatedly splits the
+    /// rightmost leaf without ever folding the resulting nodes back
+    /// together, degrading the tree into a linked list along the right
+    /// spine. A full rebuild is `O(subtree size)`, but it's only triggered
+    /// once a subtree has drifted past [`IMBALANCE_FACTOR`], which — since
+    /// a rebuild resets it to perfectly balanced — happens rarely enough
+    /// relative to subtree size to keep the amortized cost per edit
+    /// logarithmic (the standard scapegoat-tree argument).
+    fn rebalance_if_needed(&mut self) {
+        let Node::Internal(n) = self else { return };
+
+        let total = n.chars;
+        if total <= REBALANCE_MIN_CHARS {
+            return;
+        }
+
+        let right_chars = total - n.left_chars;
+        let smaller = n.left_chars.min(right_chars);
+
+        if (smaller as f64) < IMBALANCE_FACTOR * total as f64 {
+            let mut buf = String::with_capacity(total);
+            self.flatten(&mut buf);
+            *self = Node::from_str(&buf);
+        }
     }
 
     /// Inserts `text` at character offset `at` (relative to this node).
@@ -85,14 +136,20 @@ impl Node {
                 (text.chars().count(), text.matches('\n').count())
             }
             Node::Internal(n) => {
-                if at <= n.left_chars {
+                let (dc, dn) = if at <= n.left_chars {
                     let (dc, dn) = n.left.insert(at, text);
                     n.left_chars += dc;
                     n.left_newlines += dn;
                     (dc, dn)
                 } else {
                     n.right.insert(at - n.left_chars, text)
-                }
+                };
+
+                n.chars += dc;
+
+                self.rebalance_if_needed();
+
+                (dc, dn)
             }
         }
     }
@@ -133,6 +190,10 @@ impl Node {
                     removed_chars += dc;
                     removed_newlines += dn;
                 }
+
+                n.chars -= removed_chars;
+
+                self.rebalance_if_needed();
 
                 (removed_chars, removed_newlines)
             }
@@ -335,6 +396,19 @@ impl TextStorage for RopeStorage {
         self.total_lines -= newlines_removed;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+impl Node {
+    /// The tree's height (a single leaf has depth 1). Test-only: used to
+    /// confirm the tree stays roughly balanced rather than degenerating
+    /// under one-sided edit patterns.
+    fn depth(&self) -> usize {
+        match self {
+            Node::Leaf(_) => 1,
+            Node::Internal(n) => 1 + n.left.depth().max(n.right.depth()),
+        }
     }
 }
 
@@ -679,6 +753,38 @@ mod tests {
         assert_eq!(storage.line(199), Some(line.to_string()));
         assert_eq!(storage.to_text(), text);
         assert_eq!(storage.len_chars(), text.chars().count());
+    }
+
+    #[test]
+    fn sequential_typing_stays_balanced() {
+        // Simulates holding down a key: many single-character inserts,
+        // each at the end of the document. Before `Node::rebalance_if_needed`
+        // existed, this pattern degenerated the tree into a right-leaning
+        // spine that grew one level deeper roughly every `MAX_LEAF_LEN`
+        // characters typed — i.e. O(n) depth instead of O(log n).
+        let mut storage = RopeStorage::new();
+
+        let n = 50_000;
+        for i in 0..n {
+            storage.insert(Position::new(0, i), "x").unwrap();
+        }
+
+        assert_eq!(storage.len_chars(), n);
+        assert_eq!(storage.to_text(), "x".repeat(n));
+
+        // A perfectly balanced tree over `n` leaves of MAX_LEAF_LEN each
+        // has depth ~log2(n / MAX_LEAF_LEN). The bound below is deliberately
+        // generous (the goal is ruling out linear growth, not chasing a
+        // tight constant); the unpatched tree would blow past it by 10x+.
+        let leaves = (n / MAX_LEAF_LEN).max(1);
+        let bound = (leaves as f64).log2().ceil() as usize * 4 + 10;
+        let depth = storage.root.depth();
+
+        assert!(
+            depth <= bound,
+            "tree depth {depth} exceeds generous bound {bound} after {n} \
+             sequential inserts — rebalancing may be broken"
+        );
     }
 
     #[test]
