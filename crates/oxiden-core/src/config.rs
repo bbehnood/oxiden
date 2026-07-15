@@ -223,12 +223,13 @@ impl Config {
                 }
 
                 "backend" => {
-                    config.backend = Backend::parse(value).ok_or_else(|| {
-                        parse_error(format!(
-                            "unknown backend {value:?} (expected vec, \
+                    config.backend =
+                        Backend::parse(value).ok_or_else(|| {
+                            parse_error(format!(
+                                "unknown backend {value:?} (expected vec, \
                              rope, or ropey)"
-                        ))
-                    })?;
+                            ))
+                        })?;
                 }
 
                 other => {

@@ -38,7 +38,11 @@ fn terminator_len(slice: &RopeSlice) -> usize {
 
     match slice.char(len - 1) {
         '\n' => {
-            if len >= 2 && slice.char(len - 2) == '\r' { 2 } else { 1 }
+            if len >= 2 && slice.char(len - 2) == '\r' {
+                2
+            } else {
+                1
+            }
         }
         '\r' | '\u{0B}' | '\u{0C}' | '\u{0085}' | '\u{2028}' | '\u{2029}' => 1,
         _ => 0,
