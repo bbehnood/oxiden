@@ -63,7 +63,7 @@ oxiden --backend vec path/to/file.txt
 | `Ctrl+S`            | Save                                             |
 | `F2`                | Save as                                          |
 | `Ctrl+Z`            | Undo                                             |
-| `Ctrl+Y`            | Redo                                             |
+| `Ctrl+R`            | Redo                                             |
 | `Ctrl+Q`            | Quit (press twice if there are unsaved changes)  |
 
 ## Configuration
