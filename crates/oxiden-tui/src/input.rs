@@ -74,12 +74,16 @@ pub fn map_key(key: KeyEvent, config: &Config) -> Action {
             Action::Edit(Command::Redo)
         }
 
-        (KeyCode::Char(c), m) if m.is_empty() || m == KeyModifiers::SHIFT => {
-            Action::Edit(Command::Insert(c))
+        // In most terminals, Ctrl+Backspace is sent as Ctrl+H.
+        (KeyCode::Char('h'), KeyModifiers::CONTROL) => {
+            Action::DeleteTo(Move::WordLeft)
         }
-
         (KeyCode::Delete, KeyModifiers::CONTROL) => {
             Action::DeleteTo(Move::WordRight)
+        }
+
+        (KeyCode::Char(c), m) if m.is_empty() || m == KeyModifiers::SHIFT => {
+            Action::Edit(Command::Insert(c))
         }
 
         (KeyCode::Tab, _) if config.insert_spaces_for_tab => Action::Edit(
