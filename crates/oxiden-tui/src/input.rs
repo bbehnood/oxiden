@@ -82,11 +82,9 @@ pub fn map_key(key: KeyEvent, config: &Config) -> Action {
             Action::DeleteTo(Move::WordRight)
         }
 
-        (KeyCode::Tab, _) if config.insert_spaces_for_tab => {
-            Action::Edit(Command::InsertText(
-                " ".repeat(config.tab_width.max(1)),
-            ))
-        }
+        (KeyCode::Tab, _) if config.insert_spaces_for_tab => Action::Edit(
+            Command::InsertText(" ".repeat(config.tab_width.max(1))),
+        ),
         (KeyCode::Tab, _) => Action::Edit(Command::Insert('\t')),
 
         (KeyCode::Enter, _) => Action::Edit(Command::NewLine),
@@ -342,11 +340,10 @@ pub fn word_boundary<S: TextStorage>(
         Direction::Right => {
             let mut pos = cursor;
 
-            if let Some(class) = class_at(buffer, pos) {
-                if class != CharClass::Whitespace {
-                    pos =
-                        advance_while(buffer, pos, |c| char_class(c) == class);
-                }
+            if let Some(class) = class_at(buffer, pos)
+                && class != CharClass::Whitespace
+            {
+                pos = advance_while(buffer, pos, |c| char_class(c) == class);
             }
 
             advance_while(buffer, pos, |c| {
