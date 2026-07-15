@@ -13,9 +13,9 @@ thiserror = "2"
 crossterm = "0.29"
 ropey = "1"
 
-oxiden-buffer = { version = "0.4.0", path = "crates/oxiden-buffer" }
-oxiden-core = { version = "0.4.0", path = "crates/oxiden-core" }
-oxiden-tui = { version = "0.4.0", path = "crates/oxiden-tui" }
+oxiden-buffer = { version = "0.4.1", path = "crates/oxiden-buffer" }
+oxiden-core = { version = "0.4.1", path = "crates/oxiden-core" }
+oxiden-tui = { version = "0.4.1", path = "crates/oxiden-tui" }
 
 [profile.release]
 opt-level = 3
